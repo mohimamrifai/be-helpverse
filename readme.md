@@ -1,14 +1,14 @@
 # HelpVerse API
 
-HelpVerse API adalah backend untuk platform ticketing event yang menyediakan fungsionalitas pengelolaan event, pemesanan tiket, manajemen pengguna, dan daftar tunggu.
+HelpVerse API is a backend for an event ticketing platform that provides functionality for event management, ticket booking, user management, and waiting lists.
 
-## Persyaratan Sistem
+## System Requirements
 
-- Node.js (v14 atau lebih tinggi)
+- Node.js (v14 or higher)
 - MongoDB
-- pnpm (disarankan) atau npm
+- pnpm (recommended) or npm
 
-## Instalasi
+## Installation
 
 1. **Clone repository**
 
@@ -17,17 +17,17 @@ git clone https://github.com/yourusername/helpverse-api.git
 cd helpverse-api
 ```
 
-2. **Instalasi dependensi**
+2. **Install dependencies**
 
 ```bash
 pnpm install
-# atau
+# or
 npm install
 ```
 
-3. **Konfigurasi environment variables**
+3. **Configure environment variables**
 
-Buat file `.env` di root project dengan konfigurasi berikut:
+Create a `.env` file in the project root with the following configuration:
 
 ```
 PORT=5000
@@ -38,118 +38,118 @@ JWT_COOKIE_EXPIRE=30
 CLIENT_URL=http://localhost:5173,http://localhost:3000
 ```
 
-Ganti nilai-nilai berikut sesuai dengan kebutuhan Anda:
-- `MONGO_URI`: String koneksi MongoDB
-- `JWT_SECRET`: Secret key untuk JWT
-- `CLIENT_URL`: URL frontend yang diizinkan untuk CORS (pisahkan dengan koma untuk multiple URL)
+Replace the following values according to your needs:
+- `MONGO_URI`: MongoDB connection string
+- `JWT_SECRET`: Secret key for JWT
+- `CLIENT_URL`: Frontend URL allowed for CORS (separate with commas for multiple URLs)
 
-4. **Build aplikasi**
+4. **Build application**
 
 ```bash
 pnpm build
-# atau
+# or
 npm run build
 ```
 
-5. **Seed database (opsional)**
+5. **Seed database (optional)**
 
-Untuk mengisi database dengan data awal:
+To populate the database with initial data:
 
 ```bash
 pnpm seed
-# atau
+# or
 npm run seed
 ```
 
-## Menjalankan Aplikasi
+## Running the Application
 
-### Mode Development
+### Development Mode
 
 ```bash
 pnpm dev
-# atau
+# or
 npm run dev
 ```
 
-Server akan berjalan di `http://localhost:5000` dengan fitur hot-reload.
+The server will run at `http://localhost:5000` with hot-reload feature.
 
-### Mode Production
+### Production Mode
 
 ```bash
 pnpm start
-# atau
+# or
 npm start
 ```
 
-## Struktur API
+## API Structure
 
-HelpVerse API menyediakan endpoint-endpoint berikut:
+HelpVerse API provides the following endpoints:
 
-### Autentikasi
+### Authentication
 
-- `POST /api/auth/register` - Registrasi pengguna baru
-- `POST /api/auth/login` - Login pengguna
-- `GET /api/auth/me` - Mendapatkan data pengguna saat ini
-- `POST /api/auth/logout` - Logout pengguna
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user data
+- `POST /api/auth/logout` - User logout
 
 ### Events
 
-- `GET /api/events` - Mendapatkan semua event
-- `GET /api/events/:id` - Mendapatkan detail event
-- `POST /api/events` - Membuat event baru (admin)
-- `PUT /api/events/:id` - Mengupdate event (admin)
-- `DELETE /api/events/:id` - Menghapus event (admin)
+- `GET /api/events` - Get all events
+- `GET /api/events/:id` - Get event details
+- `POST /api/events` - Create a new event (admin)
+- `PUT /api/events/:id` - Update an event (admin)
+- `DELETE /api/events/:id` - Delete an event (admin)
 
 ### Orders
 
-- `GET /api/orders` - Mendapatkan semua pesanan pengguna
-- `POST /api/orders` - Membuat pesanan baru
-- `GET /api/orders/:id` - Mendapatkan detail pesanan
+- `GET /api/orders` - Get all user orders
+- `POST /api/orders` - Create a new order
+- `GET /api/orders/:id` - Get order details
 
 ### Admin
 
-- `GET /api/admin/users` - Mendapatkan semua pengguna (admin)
-- `GET /api/admin/orders` - Mendapatkan semua pesanan (admin)
+- `GET /api/admin/users` - Get all users (admin)
+- `GET /api/admin/orders` - Get all orders (admin)
 
 ### Uploads
 
-- `POST /api/uploads` - Upload file (gambar)
-- `GET /uploads/:filename` - Akses file yang telah diupload
+- `POST /api/uploads` - Upload a file (image)
+- `GET /uploads/:filename` - Access uploaded files
 
 ### Waiting List
 
-- `POST /api/waiting-list` - Mendaftar ke waiting list
-- `GET /api/waiting-list` - Mendapatkan semua anggota waiting list (admin)
+- `POST /api/waiting-list` - Register to the waiting list
+- `GET /api/waiting-list` - Get all waiting list members (admin)
 
-## Fitur Keamanan
+## Security Features
 
-- Rate limiting untuk mencegah serangan brute force
-- JWT untuk autentikasi dan otorisasi
-- Validasi input dengan express-validator
+- Rate limiting to prevent brute force attacks
+- JWT for authentication and authorization
+- Input validation with express-validator
 - CORS protection
 
-## Penyimpanan File
+## File Storage
 
-File yang diupload (seperti gambar event) disimpan di folder `uploads/` dan dapat diakses melalui endpoint `/uploads/:filename`.
+Uploaded files (such as event images) are stored in the `uploads/` folder and can be accessed through the `/uploads/:filename` endpoint.
 
-## Pengembangan
+## Development
 
-API ini dikembangkan menggunakan:
+This API was developed using:
 - TypeScript
 - Express.js
-- MongoDB dengan Mongoose
-- JWT untuk autentikasi
+- MongoDB with Mongoose
+- JWT for authentication
 
-## Kesalahan dan Penanganan Error
+## Errors and Error Handling
 
-API menyediakan respons JSON untuk error dengan format berikut:
+The API provides JSON responses for errors with the following format:
 
 ```json
 {
   "success": false,
-  "error": "Pesan error"
+  "error": "Error message"
 }
 ```
 
-Pada mode development, response juga akan menyertakan stack trace untuk debugging.
+In development mode, the response will also include a stack trace for debugging.
 # be-helpverse
