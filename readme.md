@@ -153,3 +153,4 @@ The API provides JSON responses for errors with the following format:
 
 In development mode, the response will also include a stack trace for debugging.
 # be-helpverse
+# be-helpverse
