@@ -1,0 +1,33 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# production
+/dist
+/build
+
+# misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+/.vscode
+/.idea
+
+# Uploads folder - ignore files but keep folder
+/uploads/*
+!/uploads/.gitkeep
+!/uploads/images/
+/uploads/images/*
+!/uploads/images/.gitkeep 
