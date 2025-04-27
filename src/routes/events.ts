@@ -5,6 +5,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  getMyEvents,
 } from '../controllers/events';
 import {
   getEventTickets,
@@ -20,6 +21,9 @@ router
   .route('/')
   .get(getEvents)
   .post(protect, authorize('eventOrganizer', 'admin'), upload.single('image'), createEvent);
+
+// Get events for logged-in event organizer
+router.route('/my-events').get(protect, authorize('eventOrganizer', 'admin'), getMyEvents);
 
 // Get, update and delete single event
 router

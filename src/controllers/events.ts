@@ -422,21 +422,13 @@ export const updateEvent = async (
 
 // @desc    Delete event
 // @route   DELETE /api/events/:id
-// @access  Private (Owner/Admin)
+// @access  Private
 export const deleteEvent = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: 'Not authorized to access this route',
-      });
-      return;
-    }
-
     const event = await Event.findById(req.params.id);
 
     if (!event) {
@@ -447,10 +439,11 @@ export const deleteEvent = async (
       return;
     }
 
-    // Make sure user is event owner or admin
+    // Ensure user is event creator or admin
     if (
-      event.createdBy.toString() !== req.user.id &&
-      req.user.role !== 'admin'
+      !req.user ||
+      (event.createdBy.toString() !== req.user.id &&
+        req.user.role !== 'admin')
     ) {
       res.status(401).json({
         success: false,
@@ -464,6 +457,128 @@ export const deleteEvent = async (
     res.status(200).json({
       success: true,
       data: {},
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get all events created by the logged-in event organizer
+// @route   GET /api/events/my-events
+// @access  Private (Event Organizer, Admin)
+export const getMyEvents = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Not authorized to access this route',
+      });
+      return;
+    }
+
+    // Build query
+    const reqQuery = { ...req.query };
+
+    // Fields to exclude
+    const removeFields = ['select', 'sort', 'page', 'limit', 'search'];
+    removeFields.forEach((param) => delete reqQuery[param]);
+
+    // Add createdBy filter to get only events created by the logged-in user
+    const query = { ...JSON.parse(JSON.stringify(reqQuery)), createdBy: req.user.id };
+
+    // Create query string
+    let queryStr = JSON.stringify(query);
+    
+    // Create operators ($gt, $gte, etc)
+    queryStr = queryStr.replace(
+      /\b(gt|gte|lt|lte|in)\b/g,
+      (match) => `$${match}`
+    );
+
+    // Finding resource
+    let findQuery = Event.find(JSON.parse(queryStr));
+
+    // Add search functionality
+    if (req.query.search) {
+      const searchTerm = req.query.search as string;
+      // Only perform search if searchTerm is not empty
+      if (searchTerm.trim() !== '') {
+        findQuery = findQuery.or([
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { description: { $regex: searchTerm, $options: 'i' } },
+          { location: { $regex: searchTerm, $options: 'i' } },
+          { tags: { $in: [new RegExp(searchTerm, 'i')] } }
+        ]);
+      }
+    }
+
+    // Select fields
+    if (req.query.select) {
+      const fields = (req.query.select as string).split(',').join(' ');
+      // @ts-ignore
+      findQuery = findQuery.select(fields);
+    }
+
+    // Sort
+    if (req.query.sort) {
+      const sortBy = (req.query.sort as string).split(',').join(' ');
+      findQuery = findQuery.sort(sortBy);
+    } else {
+      findQuery = findQuery.sort('-createdAt');
+    }
+
+    // Pagination
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    
+    // Count total documents with the same filter
+    const total = await Event.countDocuments(JSON.parse(queryStr));
+
+    findQuery = findQuery.skip(startIndex).limit(limit);
+
+    // Populate with event organizer details
+    findQuery = findQuery.populate('createdBy', 'username fullName organizerName');
+
+    // Executing query
+    const events = await findQuery;
+
+    // Format time to HH:MM
+    const formattedEvents = events.map(event => {
+      const eventObj = event.toObject();
+      if (eventObj.time && eventObj.time.length > 5) {
+        eventObj.time = eventObj.time.slice(0, 5);
+      }
+      return eventObj;
+    });
+
+    // Pagination result
+    const pagination: any = {};
+
+    if (endIndex < total) {
+      pagination.next = {
+        page: page + 1,
+        limit,
+      };
+    }
+
+    if (startIndex > 0) {
+      pagination.prev = {
+        page: page - 1,
+        limit,
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      count: events.length,
+      pagination,
+      data: formattedEvents,
     });
   } catch (err) {
     next(err);

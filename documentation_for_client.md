@@ -1385,3 +1385,104 @@ const deleteWaitingList = async () => {
      "error": ["Email tidak valid"]
    }
    ```
+
+### Mendapatkan Semua Event (dengan filter, pencarian, dll)
+
+```
+GET /api/events
+```
+
+Mendapatkan daftar semua event yang telah dipublikasikan.
+
+**Parameter Query (opsional):**
+- `search`: string - mencari berdasarkan nama, deskripsi, lokasi, atau tag
+- `select`: string - memilih field yang akan dikembalikan, dipisahkan dengan koma
+- `sort`: string - mengurutkan berdasarkan field tertentu, dipisahkan dengan koma
+- `page`: number - nomor halaman untuk pagination
+- `limit`: number - jumlah data per halaman
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "count": 2,
+  "pagination": {
+    "next": {
+      "page": 2,
+      "limit": 10
+    }
+  },
+  "data": [
+    {
+      "_id": "60d21b4667d0d8992e610c85",
+      "name": "Tech Conference 2023",
+      "description": "Conference tahunan membahas teknologi terbaru",
+      "date": "2023-08-15T00:00:00.000Z",
+      "time": "09:00",
+      "location": "Kuala Lumpur Convention Center",
+      "price": 100.00,
+      // ...fields lainnya
+    }
+  ]
+}
+```
+
+### Mendapatkan Event Milik Event Organizer yang Login
+
+```
+GET /api/events/my-events
+```
+
+Mendapatkan daftar semua event yang dibuat oleh event organizer yang sedang login.
+
+**Header:**
+- `Authorization`: Bearer [token]
+
+**Parameter Query (opsional):**
+- `search`: string - mencari berdasarkan nama, deskripsi, lokasi, atau tag
+- `select`: string - memilih field yang akan dikembalikan, dipisahkan dengan koma
+- `sort`: string - mengurutkan berdasarkan field tertentu, dipisahkan dengan koma
+- `page`: number - nomor halaman untuk pagination
+- `limit`: number - jumlah data per halaman
+- Filter lain seperti `published=true`, `approvalStatus=approved`, dll.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "count": 2,
+  "pagination": {
+    "next": {
+      "page": 2,
+      "limit": 10
+    }
+  },
+  "data": [
+    {
+      "_id": "60d21b4667d0d8992e610c85",
+      "name": "Tech Conference 2023",
+      "description": "Conference tahunan membahas teknologi terbaru",
+      "date": "2023-08-15T00:00:00.000Z",
+      "time": "09:00",
+      "location": "Kuala Lumpur Convention Center",
+      "published": true,
+      "approvalStatus": "approved",
+      "createdBy": {
+        "_id": "60d0fe4667d0d8992e610c80",
+        "username": "organizer1",
+        "fullName": "Organizer One",
+        "organizerName": "Premier Events"
+      },
+      // ...fields lainnya
+    }
+  ]
+}
+```
+
+### Mendapatkan Detail Event
+
+```
+GET /api/events/:id
+```
