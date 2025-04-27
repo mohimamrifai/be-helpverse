@@ -20,13 +20,13 @@ import authRoutes from './routes/auth';
 import eventRoutes from './routes/events';
 import orderRoutes from './routes/orders';
 import adminRoutes from './routes/admin';
-import uploadRoutes from './routes/uploads';
 import waitingListRoutes from './routes/waitingList';
 
 const app: Application = express();
 
 // Body parser
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Handle URL-encoded form data
 
 // Cookie parser
 app.use(cookieParser());
@@ -64,7 +64,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/uploads', uploadRoutes);
 app.use('/api/waiting-list', waitingListRoutes);
 
 // Base route

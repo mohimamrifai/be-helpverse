@@ -194,7 +194,7 @@ export const getEvent = async (
 // @route   POST /api/events
 // @access  Private (Event Organizer/Admin)
 export const createEvent = async (
-  req: AuthRequest,
+  req: AuthRequest & { file?: Express.Multer.File },
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -208,21 +208,75 @@ export const createEvent = async (
       return;
     }
 
-    req.body.createdBy = req.user.id;
+    const eventData = { ...req.body };
+    eventData.createdBy = req.user.id;
 
     // Format time to HH:MM if it contains seconds
-    if (req.body.time && req.body.time.length > 5) {
-      req.body.time = req.body.time.slice(0, 5);
+    if (eventData.time && eventData.time.length > 5) {
+      eventData.time = eventData.time.slice(0, 5);
     }
 
+    // Handle image upload if a file is provided
+    if (req.file) {
+      console.log('File uploaded:', req.file);
+      // Gunakan path relative untuk akses via browser
+      eventData.image = `/uploads/images/${req.file.filename}`;
+      console.log('Image path saved:', eventData.image);
+    } else if (eventData.image && typeof eventData.image === 'object') {
+      // Jika image adalah objek kosong, hapus agar default di model digunakan
+      console.log('Image is empty object, removing it');
+      delete eventData.image;
+    }
+
+    // Parse tickets dan promotionalOffers jika dikirim sebagai string
+    if (eventData.tickets && typeof eventData.tickets === 'string') {
+      try {
+        eventData.tickets = JSON.parse(eventData.tickets);
+        console.log('Parsed tickets JSON successfully');
+      } catch (error) {
+        console.error('Error parsing tickets:', error);
+        // Jika tidak bisa di-parse, hapus saja
+        delete eventData.tickets;
+      }
+    }
+
+    if (eventData.promotionalOffers && typeof eventData.promotionalOffers === 'string') {
+      try {
+        eventData.promotionalOffers = JSON.parse(eventData.promotionalOffers);
+        console.log('Parsed promotionalOffers JSON successfully');
+      } catch (error) {
+        console.error('Error parsing promotionalOffers:', error);
+        // Jika tidak bisa di-parse, hapus saja
+        delete eventData.promotionalOffers;
+      }
+    }
+
+    if (eventData.tags && typeof eventData.tags === 'string') {
+      try {
+        eventData.tags = JSON.parse(eventData.tags);
+        console.log('Parsed tags JSON successfully');
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        // Jika string tunggal, konversi ke array dengan 1 item
+        if (eventData.tags.trim() !== '') {
+          eventData.tags = [eventData.tags];
+        } else {
+          delete eventData.tags;
+        }
+      }
+    }
+
+    console.log('Creating event with data:', JSON.stringify(eventData, null, 2));
     // Create event
-    const event = await Event.create(req.body);
+    const event = await Event.create(eventData);
+    console.log('Event created successfully:', event._id);
 
     res.status(201).json({
       success: true,
       data: event,
     });
   } catch (err) {
+    console.error('Error creating event:', err);
     if (err instanceof Error) {
       res.status(400).json({
         success: false,
@@ -238,7 +292,7 @@ export const createEvent = async (
 // @route   PUT /api/events/:id
 // @access  Private (Owner/Admin)
 export const updateEvent = async (
-  req: AuthRequest,
+  req: AuthRequest & { file?: Express.Multer.File },
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -273,22 +327,88 @@ export const updateEvent = async (
       return;
     }
 
+    const updateData = { ...req.body };
+
     // Format time to HH:MM if it contains seconds
-    if (req.body.time && req.body.time.length > 5) {
-      req.body.time = req.body.time.slice(0, 5);
+    if (updateData.time && updateData.time.length > 5) {
+      updateData.time = updateData.time.slice(0, 5);
     }
 
+    // Handle image upload if a file is provided
+    if (req.file) {
+      console.log('New file uploaded:', req.file);
+      
+      // Delete old image if it exists
+      if (event.image) {
+        try {
+          const { deleteFile } = require('../utils/fileHelper');
+          await deleteFile(event.image);
+          console.log('Old image deleted:', event.image);
+        } catch (error) {
+          console.error('Failed to delete old image:', error);
+          // Continue even if delete fails
+        }
+      }
+      
+      // Set new image path
+      updateData.image = `/uploads/images/${req.file.filename}`;
+      console.log('New image path saved:', updateData.image);
+    } else if (updateData.image && typeof updateData.image === 'object') {
+      // Jika image adalah objek kosong, hapus dari data update
+      console.log('Image is empty object, removing from update data');
+      delete updateData.image;
+    }
+
+    // Parse tickets dan promotionalOffers jika dikirim sebagai string
+    if (updateData.tickets && typeof updateData.tickets === 'string') {
+      try {
+        updateData.tickets = JSON.parse(updateData.tickets);
+        console.log('Parsed tickets JSON successfully');
+      } catch (error) {
+        console.error('Error parsing tickets:', error);
+        delete updateData.tickets;
+      }
+    }
+
+    if (updateData.promotionalOffers && typeof updateData.promotionalOffers === 'string') {
+      try {
+        updateData.promotionalOffers = JSON.parse(updateData.promotionalOffers);
+        console.log('Parsed promotionalOffers JSON successfully');
+      } catch (error) {
+        console.error('Error parsing promotionalOffers:', error);
+        delete updateData.promotionalOffers;
+      }
+    }
+
+    if (updateData.tags && typeof updateData.tags === 'string') {
+      try {
+        updateData.tags = JSON.parse(updateData.tags);
+        console.log('Parsed tags JSON successfully');
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        if (updateData.tags.trim() !== '') {
+          updateData.tags = [updateData.tags];
+        } else {
+          delete updateData.tags;
+        }
+      }
+    }
+
+    console.log('Updating event with data:', JSON.stringify(updateData, null, 2));
     // Update event
-    event = await Event.findByIdAndUpdate(req.params.id, req.body, {
+    event = await Event.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });
+    
+    console.log('Event updated successfully:', event?._id);
 
     res.status(200).json({
       success: true,
       data: event,
     });
   } catch (err) {
+    console.error('Error updating event:', err);
     if (err instanceof Error) {
       res.status(400).json({
         success: false,

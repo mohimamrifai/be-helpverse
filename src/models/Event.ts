@@ -140,7 +140,8 @@ const EventSchema = new Schema<IEvent>(
     },
     image: {
       type: String,
-      required: [true, 'Please add an event image'],
+      required: false,
+      default: null,
     },
     tickets: [TicketSchema],
     totalSeats: {

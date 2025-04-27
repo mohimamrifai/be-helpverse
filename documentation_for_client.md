@@ -49,16 +49,27 @@ HelpVerse adalah platform ticketing event komprehensif yang memungkinkan event o
 - Manajemen pengguna
 - Statistik platform
 
-## Upload File
-
-### Upload Gambar
 ```javascript
-const uploadImage = async (file) => {
+const createEventWithImageOneRequest = async (eventData, imageFile) => {
   try {
+    // Buat FormData
     const formData = new FormData();
-    formData.append('image', file);
     
-    const response = await fetch('/api/uploads/image', {
+    // Tambahkan file gambar
+    formData.append('image', imageFile);
+    
+    // Tambahkan semua field event ke formData
+    Object.keys(eventData).forEach(key => {
+      // Untuk array atau object, konversi ke JSON string
+      if (typeof eventData[key] === 'object' && eventData[key] !== null) {
+        formData.append(key, JSON.stringify(eventData[key]));
+      } else {
+        formData.append(key, eventData[key]);
+      }
+    });
+    
+    // Kirim request
+    const response = await fetch('/api/events', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -67,41 +78,7 @@ const uploadImage = async (file) => {
     });
     
     if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-    
-    const result = await response.json();
-    return result.data.filePath; // Mengembalikan path file untuk disimpan di database
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
-  }
-};
-
-// Penggunaan saat membuat event baru
-const createEventWithImage = async (eventData, imageFile) => {
-  try {
-    // Upload gambar terlebih dahulu
-    const imagePath = await uploadImage(imageFile);
-    
-    // Tambahkan path gambar ke data event
-    const eventWithImage = {
-      ...eventData,
-      image: imagePath
-    };
-    
-    // Buat event dengan path gambar
-    const response = await fetch('/api/events', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(eventWithImage)
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to create event');
+      throw new Error('Failed to create event with image');
     }
     
     return await response.json();
@@ -112,28 +89,249 @@ const createEventWithImage = async (eventData, imageFile) => {
 };
 ```
 
-### Menghapus Gambar
-```javascript
-const deleteImage = async (filePath) => {
-  try {
-    const response = await fetch('/api/uploads/image', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ filePath })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to delete image');
+### Catatan Penting tentang Upload Gambar
+
+1. **Struktur Folder**: Gambar yang diunggah akan disimpan di folder `uploads/images/` di root project (bukan di dalam folder src).
+
+2. **URL Akses**: Gambar dapat diakses melalui URL: `http://[BASE_URL]/uploads/images/[nama-file]`.
+
+3. **Nama File**: Nama file yang disimpan secara otomatis akan diubah menjadi format: `image-[timestamp].[ekstensi]` untuk mencegah konflik nama file.
+
+4. **Tipe File**: Hanya file gambar (jpeg, jpg, png, gif) yang diperbolehkan.
+
+5. **Batasan Ukuran**: Ukuran file maksimum adalah 5MB.
+
+6. **Penggunaan di Frontend**: Untuk menampilkan gambar di frontend, gunakan URL lengkap:
+   ```javascript
+   // Contoh menampilkan gambar event
+   const EventImage = ({ imageUrl }) => {
+     const fullImageUrl = `${process.env.REACT_APP_API_URL}${imageUrl}`;
+     return <img src={fullImageUrl} alt="Event" />;
+   };
+   ```
+
+7. **Troubleshooting**: Jika gambar tidak tampil:
+   - Pastikan URL lengkap sudah benar
+   - Periksa apakah file gambar tersimpan di folder uploads/images/
+   - Pastikan server Express sudah menyediakan static path untuk folder uploads
+
+### Update Terbaru: Upload Gambar Terintegrasi
+
+Sistem upload gambar telah terintegrasi langsung ke dalam endpoint pembuatan dan pembaruan event. Ini berarti:
+
+1. **Tidak Ada Endpoint Upload Terpisah**:
+   - Tidak perlu lagi mengupload gambar terlebih dahulu melalui endpoint terpisah
+   - File gambar dikirim bersamaan dengan data event dalam satu request
+
+2. **Endpoint Create dan Update Event**:
+   - `POST /api/events` - Upload gambar dan buat event sekaligus
+   - `PUT /api/events/:id` - Upload gambar baru dan update data event sekaligus
+
+3. **Implementasi di Frontend**:
+   ```javascript
+   const createEventWithImage = async (eventData, imageFile) => {
+     try {
+       // Buat FormData
+       const formData = new FormData();
+       
+       // Tambahkan file gambar jika ada
+       if (imageFile) {
+         formData.append('image', imageFile);
+       }
+       
+       // Tambahkan data event dasar
+       Object.keys(eventData).forEach(key => {
+         // Khusus untuk array dan objek, konversi ke JSON string
+         if (key === 'tickets' || key === 'promotionalOffers' || key === 'tags') {
+           formData.append(key, JSON.stringify(eventData[key]));
+         } else {
+           formData.append(key, eventData[key]);
+         }
+       });
+       
+       // Kirim request untuk membuat event
+       const response = await fetch('/api/events', {
+         method: 'POST',
+         headers: {
+           'Authorization': `Bearer ${localStorage.getItem('token')}`
+         },
+         body: formData
+       });
+       
+       if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.error || 'Failed to create event');
+       }
+       
+       return await response.json();
+     } catch (error) {
+       console.error('Error creating event:', error);
+       throw error;
+     }
+   };
+   
+   // Contoh update event dengan gambar baru
+   const updateEventWithImage = async (eventId, eventData, imageFile) => {
+     try {
+       const formData = new FormData();
+       
+       if (imageFile) {
+         formData.append('image', imageFile);
+       }
+       
+       Object.keys(eventData).forEach(key => {
+         if (key === 'tickets' || key === 'promotionalOffers' || key === 'tags') {
+           formData.append(key, JSON.stringify(eventData[key]));
+         } else {
+           formData.append(key, eventData[key]);
+         }
+       });
+       
+       const response = await fetch(`/api/events/${eventId}`, {
+         method: 'PUT',
+         headers: {
+           'Authorization': `Bearer ${localStorage.getItem('token')}`
+         },
+         body: formData
+       });
+       
+       if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.error || 'Failed to update event');
+       }
+       
+       return await response.json();
+     } catch (error) {
+       console.error('Error updating event:', error);
+       throw error;
+     }
+   };
+   ```
+
+4. **Catatan Penting**:
+   - Saat update event, jika gambar baru diunggah, gambar lama akan otomatis dihapus
+   - Jika tidak ingin mengubah gambar, cukup tidak sertakan field `image` dalam request
+   - Server akan otomatis menangani parsing untuk data complex seperti tickets, promotionalOffers, dan tags
+
+### Contoh Implementasi React Hooks:
+
+```jsx
+import { useState, useEffect } from 'react';
+
+const EventForm = ({ existingEvent = null }) => {
+  const [eventData, setEventData] = useState({
+    name: '',
+    description: '',
+    date: '',
+    time: '',
+    location: '',
+    totalSeats: 0,
+    availableSeats: 0,
+    tickets: [],
+    promotionalOffers: [],
+    tags: []
+  });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Jika ini form edit, isi dengan data yang sudah ada
+  useEffect(() => {
+    if (existingEvent) {
+      setEventData(existingEvent);
+      if (existingEvent.image) {
+        setImagePreview(`${process.env.REACT_APP_API_URL}${existingEvent.image}`);
+      }
     }
+  }, [existingEvent]);
+  
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEventData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     
-    return await response.json();
-  } catch (error) {
-    console.error('Error deleting image:', error);
-    throw error;
-  }
+    try {
+      let result;
+      
+      if (existingEvent) {
+        // Update existing event
+        result = await updateEventWithImage(existingEvent._id, eventData, imageFile);
+      } else {
+        // Create new event
+        result = await createEventWithImage(eventData, imageFile);
+      }
+      
+      console.log('Event saved successfully:', result);
+      // Reset form or redirect
+    } catch (error) {
+      setError(error.message || 'Failed to save event');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {error && <div className="error">{error}</div>}
+      
+      <div className="form-group">
+        <label htmlFor="name">Event Name</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          value={eventData.name}
+          onChange={handleChange}
+          required
+        />
+      </div>
+      
+      {/* Other form fields */}
+      
+      <div className="form-group">
+        <label htmlFor="image">Event Image</label>
+        {imagePreview && (
+          <div className="image-preview">
+            <img src={imagePreview} alt="Preview" style={{ maxWidth: '200px' }} />
+          </div>
+        )}
+        <input
+          type="file"
+          id="image"
+          name="image"
+          accept="image/*"
+          onChange={handleImageChange}
+        />
+      </div>
+      
+      <button type="submit" disabled={loading}>
+        {loading ? 'Saving...' : existingEvent ? 'Update Event' : 'Create Event'}
+      </button>
+    </form>
+  );
 };
 ```
 
@@ -149,8 +347,8 @@ const deleteImage = async (filePath) => {
 ### Event
 - `GET /api/events` - Mendapatkan semua event yang sudah dipublikasikan dengan pagination & filtering
 - `GET /api/events/:id` - Mendapatkan informasi detail event
-- `POST /api/events` - Membuat event baru (Event Organizer/Admin)
-- `PUT /api/events/:id` - Memperbarui event (Owner/Admin)
+- `POST /api/events` - Membuat event baru dengan upload gambar (Event Organizer/Admin)
+- `PUT /api/events/:id` - Memperbarui event dan gambar (Owner/Admin)
 - `DELETE /api/events/:id` - Menghapus event (Owner/Admin)
 
 ### Waiting List
@@ -834,8 +1032,8 @@ const ChangePasswordForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError('');
-    setSuccess('');
     
     if (!validateForm()) {
       return;

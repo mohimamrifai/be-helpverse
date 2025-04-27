@@ -11,6 +11,7 @@ import {
   getTicketSeats,
 } from '../controllers/tickets';
 import { protect, authorize } from '../middlewares/auth';
+import upload from '../middlewares/upload';
 
 const router = express.Router();
 
@@ -18,13 +19,13 @@ const router = express.Router();
 router
   .route('/')
   .get(getEvents)
-  .post(protect, authorize('eventOrganizer', 'admin'), createEvent);
+  .post(protect, authorize('eventOrganizer', 'admin'), upload.single('image'), createEvent);
 
 // Get, update and delete single event
 router
   .route('/:id')
   .get(getEvent)
-  .put(protect, updateEvent)
+  .put(protect, upload.single('image'), updateEvent)
   .delete(protect, deleteEvent);
 
 // Tickets routes
