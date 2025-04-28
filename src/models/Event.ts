@@ -77,8 +77,8 @@ const OfferSchema = new Schema<IOffer>({
   code: {
     type: String,
     required: [true, 'Please add a promotional code'],
-    unique: true,
     uppercase: true,
+    sparse: true,
   },
   discountType: {
     type: String,
@@ -191,12 +191,19 @@ EventSchema.pre('save', function (this: any, next) {
     throw new Error('Event must have at least one ticket type');
   }
 
+  // Jika promotionalOffers adalah array kosong, set ke undefined agar tidak disimpan
+  if (this.promotionalOffers && Array.isArray(this.promotionalOffers) && this.promotionalOffers.length === 0) {
+    this.promotionalOffers = undefined;
+  }
+
   // Check if promotional offers are valid
-  this.promotionalOffers.forEach((offer: any) => {
-    if (offer.validUntil < offer.validFrom) {
-      throw new Error('Offer end date must be after start date');
-    }
-  });
+  if (this.promotionalOffers && this.promotionalOffers.length > 0) {
+    this.promotionalOffers.forEach((offer: any) => {
+      if (offer.validUntil < offer.validFrom) {
+        throw new Error('Offer end date must be after start date');
+      }
+    });
+  }
 
   next();
 });

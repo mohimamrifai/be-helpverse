@@ -251,6 +251,17 @@ export const createEvent = async (
       }
     }
 
+    // Hapus promotionalOffers jika array kosong atau tidak valid
+    if (eventData.promotionalOffers) {
+      if (Array.isArray(eventData.promotionalOffers) && eventData.promotionalOffers.length === 0) {
+        console.log('Removing empty promotionalOffers array');
+        delete eventData.promotionalOffers;
+      } else if (typeof eventData.promotionalOffers === 'object' && Object.keys(eventData.promotionalOffers).length === 0) {
+        console.log('Removing empty promotionalOffers object');
+        delete eventData.promotionalOffers;
+      }
+    }
+
     if (eventData.tags && typeof eventData.tags === 'string') {
       try {
         eventData.tags = JSON.parse(eventData.tags);
@@ -376,6 +387,17 @@ export const updateEvent = async (
         console.log('Parsed promotionalOffers JSON successfully');
       } catch (error) {
         console.error('Error parsing promotionalOffers:', error);
+        delete updateData.promotionalOffers;
+      }
+    }
+
+    // Hapus promotionalOffers jika array kosong atau tidak valid
+    if (updateData.promotionalOffers) {
+      if (Array.isArray(updateData.promotionalOffers) && updateData.promotionalOffers.length === 0) {
+        console.log('Removing empty promotionalOffers array');
+        delete updateData.promotionalOffers;
+      } else if (typeof updateData.promotionalOffers === 'object' && Object.keys(updateData.promotionalOffers).length === 0) {
+        console.log('Removing empty promotionalOffers object');
         delete updateData.promotionalOffers;
       }
     }

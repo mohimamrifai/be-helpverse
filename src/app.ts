@@ -8,12 +8,17 @@ import path from 'path';
 import multer from 'multer';
 
 import connectDB from './config/db';
+import { fixEventIndices } from './utils/dbIndexFix';
 
 // Load env vars
 dotenv.config();
 
 // Connect to database
-connectDB();
+connectDB().then(async () => {
+  console.log('MongoDB Connected');
+  // Fix event indices setelah database terhubung
+  await fixEventIndices();
+});
 
 // Import routes
 import authRoutes from './routes/auth';
