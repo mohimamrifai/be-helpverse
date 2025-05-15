@@ -114,6 +114,91 @@ const sampleEvent = {
   ],
 };
 
+// Event with sold out tickets
+const soldOutEvent = {
+  name: 'K-Pop Concert 2024',
+  description: 'The most anticipated K-Pop concert featuring top K-Pop groups and solo artists. Experience an unforgettable night of music, dance, and spectacular performances.',
+  date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180), // 6 months from now
+  time: '19:30:00',
+  location: 'Axiata Arena, Bukit Jalil, 57000 Kuala Lumpur',
+  image: 'event-2.png',
+  published: true,
+  approvalStatus: 'approved',
+  totalSeats: 300,
+  availableSeats: 0, // All seats are booked
+  tags: ['music', 'concert', 'k-pop', 'entertainment'],
+  tickets: [
+    {
+      name: 'Platinum',
+      description: 'Front row seats with meet & greet session',
+      price: 500,
+      quantity: 50,
+      endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 150),
+      startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // Started a month ago
+      status: 'sold_out',
+      seatArrangement: {
+        rows: 5,
+        columns: 10,
+      },
+      bookedSeats: Array.from({ length: 50 }, (_, i) => ({
+        row: Math.floor(i / 10) + 1,
+        column: (i % 10) + 1,
+        bookingId: `PLAT-${i+1000}`,
+      })),
+    },
+    {
+      name: 'Gold',
+      description: 'Premium seats with exclusive merchandise',
+      price: 300,
+      quantity: 100,
+      endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 150),
+      startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+      status: 'sold_out',
+      seatArrangement: {
+        rows: 10,
+        columns: 10,
+      },
+      bookedSeats: Array.from({ length: 100 }, (_, i) => ({
+        row: Math.floor(i / 10) + 1,
+        column: (i % 10) + 1,
+        bookingId: `GOLD-${i+2000}`,
+      })),
+    },
+    {
+      name: 'Silver',
+      description: 'Standard seating with good view',
+      price: 150,
+      quantity: 150,
+      endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 150),
+      startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+      status: 'sold_out',
+      seatArrangement: {
+        rows: 15,
+        columns: 10,
+      },
+      bookedSeats: Array.from({ length: 150 }, (_, i) => ({
+        row: Math.floor(i / 10) + 1,
+        column: (i % 10) + 1,
+        bookingId: `SILV-${i+3000}`,
+      })),
+    }
+  ],
+  promotionalOffers: [
+    {
+      name: 'Fan Club Discount',
+      description: 'Special discount for fan club members',
+      code: 'FANCLUB',
+      discountType: 'percentage',
+      discountValue: 15,
+      maxUses: 200,
+      currentUses: 200, // All uses consumed
+      validFrom: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
+      validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 120),
+      active: false, // Disabled since all uses are consumed
+    }
+  ],
+};
+
 // Import data
 const importData = async () => {
   try {
@@ -164,9 +249,26 @@ const importData = async () => {
     const eventObj = { ...sampleEvent, createdBy: organizer._id };
     await Event.create(eventObj);
     
-    console.log('Event imported...');
-
+    // Create sold out event
+    const soldOutEventObj = { ...soldOutEvent, createdBy: organizer._id };
+    await Event.create(soldOutEventObj);
+    
+    console.log('Events imported...');
     console.log('Data imported successfully!');
+    
+    // Log sold out event information to console
+    console.log('===============================================');
+    console.log('SOLD OUT EVENT DETAILS:');
+    console.log('===============================================');
+    console.log(`Event Name: ${soldOutEvent.name}`);
+    console.log(`Total Seats: ${soldOutEvent.totalSeats}`);
+    console.log(`Available Seats: ${soldOutEvent.availableSeats}`);
+    console.log('Tickets:');
+    soldOutEvent.tickets.forEach(ticket => {
+      console.log(`  - ${ticket.name}: ${ticket.quantity} tickets (Status: ${ticket.status})`);
+    });
+    console.log('===============================================');
+    
     process.exit();
   } catch (err) {
     if (err instanceof Error) {
