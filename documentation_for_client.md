@@ -274,6 +274,30 @@
              - success: boolean
              - data: object event
 
+## 7. Notifications:
+    # Endpoint yang tersedia
+        1. GET /api/notifications
+           - Deskripsi: Mendapatkan semua notifikasi untuk user yang sedang login
+           - Header: Authorization: Bearer {token}
+           - Response Body:
+             - success: boolean
+             - count: number
+             - data: array notifikasi
+
+        2. PUT /api/notifications/:id/read
+           - Deskripsi: Menandai notifikasi tertentu sebagai telah dibaca
+           - Header: Authorization: Bearer {token}
+           - Response Body:
+             - success: boolean
+             - data: object notifikasi yang diperbarui
+
+        3. DELETE /api/notifications/:id
+           - Deskripsi: Menghapus notifikasi tertentu
+           - Header: Authorization: Bearer {token}
+           - Response Body:
+             - success: boolean
+             - message: string
+
 ## Model Data
 
 ### 1. User
@@ -349,14 +373,36 @@
     - event: Event (required)
     - createdBy: User (required)
 
+### 6. Notification
+    - recipient: User (required)
+    - title: string (required)
+    - message: string (required)
+    - type: string (enum: 'waitlist_ticket', 'event_update', 'order_confirmation', 'system')
+    - eventId: Event (optional)
+    - ticketId: WaitlistTicket (optional)
+    - isRead: boolean (default: false)
+    - createdAt: Date
+    - updatedAt: Date
+
 ## Autentikasi dan Otorisasi
 Aplikasi ini menggunakan JSON Web Token (JWT) untuk autentikasi. Token harus disertakan dalam header Authorization dengan format "Bearer {token}" untuk endpoint yang memerlukan autentikasi. 
 
 ## Upload File
 Aplikasi ini mendukung upload file menggunakan multer. Endpoint yang mendukung upload file memerlukan format multipart/form-data.
 
+## Sistem Notifikasi
+Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang peristiwa penting:
+- Notifikasi Waitlist Ticket: Saat Event Organizer menambahkan tiket waitlist baru untuk event tertentu, pengguna yang telah terdaftar dalam waiting list event tersebut akan menerima notifikasi secara otomatis.
+- Notifikasi dapat diakses melalui endpoint GET /api/notifications.
+- Notifikasi dapat ditandai sebagai telah dibaca melalui endpoint PUT /api/notifications/:id/read.
+- Notifikasi dapat dihapus melalui endpoint DELETE /api/notifications/:id.
+
 ## Catatan Penting
 - Semua data tanggal menggunakan format ISO (YYYY-MM-DD)
 - Semua waktu menggunakan format 24 jam (HH:MM)
 - Pagination tersedia untuk beberapa endpoint (lihat parameter query)
 - Pencarian full-text tersedia untuk endpoint GET /api/events
+
+
+<!-- task -->
+saat ini ketika user yang mendaftar join tiket waitlits dan mendapatkan notifikasi ketersediaan tiket setelah tiket di tambahkan oleh EVENT ORGANIZER maka user bisa melakukan order untuk tiket waitlist tersebut, apakah sudah benar ? kemudian setelah order tiket waitlist tersebut berhasil, user tersebut masih terdaftar ke join waitlist ? apakah benar saat ini seperti itu ?

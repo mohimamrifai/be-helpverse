@@ -26,6 +26,7 @@ import eventRoutes from './routes/events';
 import orderRoutes from './routes/orders';
 import adminRoutes from './routes/admin';
 import waitingListRoutes from './routes/waitingList';
+import notificationRoutes from './routes/notifications';
 
 const app: Application = express();
 
@@ -70,6 +71,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/waiting-list', waitingListRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Base route
 app.get('/', (req: Request, res: Response) => {

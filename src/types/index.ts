@@ -114,4 +114,18 @@ export interface IWaitlistTicket extends Document {
   createdBy: Types.ObjectId | IUser;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Notification Interface
+export interface INotification extends Document {
+  recipient?: Types.ObjectId | IUser;
+  email?: string;
+  title: string;
+  message: string;
+  type: 'waitlist_ticket' | 'event_update' | 'order_confirmation' | 'system';
+  eventId?: Types.ObjectId | IEvent;
+  ticketId?: Types.ObjectId | IWaitlistTicket;
+  isRead: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 } 

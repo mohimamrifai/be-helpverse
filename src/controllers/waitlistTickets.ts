@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import WaitlistTicket from '../models/WaitlistTicket';
 import Event from '../models/Event';
-import { IUser } from '../types';
+import { IUser, IWaitlistTicket } from '../types';
+import notificationService from '../utils/notificationService';
 
 // Interface for request with user
 interface AuthRequest extends Request {
@@ -98,11 +100,32 @@ export const createWaitlistTickets = async (
 
     const createdWaitlistTickets = await Promise.all(waitlistTicketPromises);
 
+    // Kirim notifikasi ke semua user yang berada dalam waiting list untuk event ini
+    const notificationResults = await Promise.all(
+      createdWaitlistTickets.map(async (ticket) => {
+        const message = `Tiket waitlist "${ticket.name}" untuk event "${event.name}" telah tersedia. Harga: ${ticket.price}. Segera pesan sebelum kehabisan!`;
+        
+        // Dapatkan ID ticket dari dokumen yang baru dibuat
+        const ticketId = ticket._id ? ticket._id.toString() : '';
+        
+        return notificationService.notifyWaitlistUsers(
+          eventId,
+          ticketId,
+          message
+        );
+      })
+    );
+
+    const totalNotified = notificationResults.reduce(
+      (total, result) => total + (result.count || 0),
+      0
+    );
+
     res.status(201).json({
       success: true,
       count: createdWaitlistTickets.length,
       data: createdWaitlistTickets,
-      message: 'Tiket waitlist berhasil dibuat',
+      message: `Tiket waitlist berhasil dibuat dan ${totalNotified} notifikasi terkirim ke user dalam waiting list`,
     });
   } catch (error) {
     console.error('Error in createWaitlistTickets:', error);
