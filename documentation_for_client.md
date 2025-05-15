@@ -397,12 +397,16 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
 - Notifikasi dapat ditandai sebagai telah dibaca melalui endpoint PUT /api/notifications/:id/read.
 - Notifikasi dapat dihapus melalui endpoint DELETE /api/notifications/:id.
 
+## Sistem Waitlist
+- Pengguna dapat mendaftar ke waiting list untuk event yang sudah habis tiketnya.
+- Ketika Event Organizer menambahkan tiket waitlist, pengguna yang terdaftar dalam waiting list akan menerima notifikasi.
+- Setelah pengguna berhasil memesan tiket waitlist, mereka akan otomatis ditandai sebagai "orderCompleted" dalam sistem waiting list.
+- Pengguna dengan status "orderCompleted" tidak akan menerima notifikasi tiket waitlist baru untuk event yang sama.
+- Pengguna tidak dapat memesan tiket waitlist lebih dari satu kali untuk event yang sama.
+
 ## Catatan Penting
 - Semua data tanggal menggunakan format ISO (YYYY-MM-DD)
 - Semua waktu menggunakan format 24 jam (HH:MM)
 - Pagination tersedia untuk beberapa endpoint (lihat parameter query)
 - Pencarian full-text tersedia untuk endpoint GET /api/events
 
-
-<!-- task -->
-saat ini ketika user yang mendaftar join tiket waitlits dan mendapatkan notifikasi ketersediaan tiket setelah tiket di tambahkan oleh EVENT ORGANIZER maka user bisa melakukan order untuk tiket waitlist tersebut, apakah sudah benar ? kemudian setelah order tiket waitlist tersebut berhasil, user tersebut masih terdaftar ke join waitlist ? apakah benar saat ini seperti itu ?

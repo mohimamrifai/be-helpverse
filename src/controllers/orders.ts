@@ -3,6 +3,7 @@ import Order from '../models/Order';
 import Event from '../models/Event';
 import WaitlistTicket from '../models/WaitlistTicket';
 import { IUser } from '../types';
+import WaitingList from '../models/WaitingList';
 
 // Interface for request with user
 interface AuthRequest extends Request {
@@ -56,6 +57,22 @@ export const createOrder = async (
       
       // Jika pemesanan untuk waitlist ticket
       if (isWaitlist) {
+        // Cek apakah user sudah pernah memesan tiket waitlist untuk event ini
+        const existingOrder = await Order.findOne({
+          user: req.user.id,
+          event: eventId,
+          isWaitlist: true,
+          status: { $ne: 'cancelled' } // Tidak termasuk pesanan yang dibatalkan
+        });
+
+        if (existingOrder) {
+          res.status(400).json({
+            success: false,
+            error: 'Anda sudah pernah memesan tiket waitlist untuk event ini',
+          });
+          return;
+        }
+
         // Cari tiket waitlist berdasarkan nama
         const waitlistTicket = await WaitlistTicket.findOne({
           event: eventId,
@@ -235,6 +252,15 @@ export const createOrder = async (
           { $inc: { quantity: -ticket.quantity } }
         );
       }
+      
+      // Hapus user dari waiting list setelah berhasil memesan tiket waitlist
+      await WaitingList.findOneAndUpdate(
+        {
+          event: eventId,
+          email: req.user.email
+        },
+        { orderCompleted: true }
+      );
     }
 
     res.status(201).json({

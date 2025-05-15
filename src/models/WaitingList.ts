@@ -8,6 +8,7 @@ export interface IWaitingList extends Document {
   status: 'pending' | 'approved' | 'rejected';
   registeredAt: Date;
   notes?: string;
+  orderCompleted?: boolean;
 }
 
 const WaitingListSchema: Schema = new Schema(
@@ -49,6 +50,10 @@ const WaitingListSchema: Schema = new Schema(
     notes: {
       type: String,
       trim: true,
+    },
+    orderCompleted: {
+      type: Boolean,
+      default: false
     },
   },
   {

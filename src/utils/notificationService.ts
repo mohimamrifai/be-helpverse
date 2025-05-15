@@ -77,8 +77,11 @@ class NotificationService {
         throw new Error('Event tidak ditemukan');
       }
 
-      // Dapatkan semua user dalam waiting list untuk event ini
-      const waitlistUsers = await WaitingList.find({ event: eventId });
+      // Dapatkan semua user dalam waiting list untuk event ini yang belum memesan tiket
+      const waitlistUsers = await WaitingList.find({ 
+        event: eventId,
+        orderCompleted: { $ne: true } // Hanya yang belum memesan
+      });
       
       if (waitlistUsers.length === 0) {
         return { success: true, message: 'Tidak ada user dalam waiting list', count: 0 };
