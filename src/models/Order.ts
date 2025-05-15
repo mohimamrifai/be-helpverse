@@ -40,6 +40,10 @@ const OrderSchema = new Schema<IOrder>(
           type: Number,
           required: [true, 'Please add the price at purchase time'],
         },
+        isWaitlist: {
+          type: Boolean,
+          default: false,
+        }
       },
     ],
     totalAmount: {
@@ -71,6 +75,10 @@ const OrderSchema = new Schema<IOrder>(
         type: Date,
         default: Date.now,
       },
+    },
+    isWaitlist: {
+      type: Boolean,
+      default: false,
     },
   },
   {

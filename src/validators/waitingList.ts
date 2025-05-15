@@ -29,27 +29,6 @@ export const validateWaitingList = [
   }
 ];
 
-export const validateUpdateWaitingList = [
-  body('status')
-    .notEmpty()
-    .withMessage('Status tidak boleh kosong')
-    .isIn(['pending', 'approved', 'rejected'])
-    .withMessage('Status harus salah satu dari: pending, approved, rejected'),
-  body('notes')
-    .optional()
-    .trim(),
-  (req: Request, res: Response, next: NextFunction) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        error: errors.array().map(err => err.msg),
-      });
-    }
-    next();
-  }
-];
-
 export const validateDeleteWaitingList = [
   body('email')
     .notEmpty()

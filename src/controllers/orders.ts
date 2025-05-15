@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Order from '../models/Order';
 import Event from '../models/Event';
+import WaitlistTicket from '../models/WaitlistTicket';
 import { IUser } from '../types';
 
 // Interface for request with user
@@ -25,7 +26,7 @@ export const createOrder = async (
       return;
     }
 
-    const { eventId, tickets, paymentInfo } = req.body;
+    const { eventId, tickets, paymentInfo, isWaitlist } = req.body;
 
     // Check if event exists
     const event = await Event.findById(eventId);
@@ -51,65 +52,97 @@ export const createOrder = async (
     const processedTickets = [];
     
     for (const ticket of tickets) {
-      const eventTicket = event.tickets.find(
-        (t) => t.name === ticket.ticketType
-      );
-
-      if (!eventTicket) {
-        res.status(400).json({
-          success: false,
-          error: `Ticket type ${ticket.ticketType} not found`,
+      let eventTicket;
+      
+      // Jika pemesanan untuk waitlist ticket
+      if (isWaitlist) {
+        // Cari tiket waitlist berdasarkan nama
+        const waitlistTicket = await WaitlistTicket.findOne({
+          event: eventId,
+          name: ticket.ticketType
         });
-        return;
-      }
 
-      // Check if enough seats are available
-      if (ticket.quantity > (eventTicket.quantity - eventTicket.bookedSeats.length)) {
-        res.status(400).json({
-          success: false,
-          error: `Not enough seats available for ticket type ${ticket.ticketType}`,
-        });
-        return;
-      }
+        if (!waitlistTicket) {
+          res.status(400).json({
+            success: false,
+            error: `Waitlist ticket type ${ticket.ticketType} not found`,
+          });
+          return;
+        }
 
-      // Verify seat selection
-      if (ticket.seats && ticket.seats.length !== ticket.quantity) {
-        res.status(400).json({
-          success: false,
-          error: `Number of seats selected (${ticket.seats.length}) does not match quantity (${ticket.quantity})`,
-        });
-        return;
-      }
+        // Buat eventTicket dari waitlistTicket
+        eventTicket = {
+          name: waitlistTicket.name,
+          price: waitlistTicket.price,
+          quantity: waitlistTicket.quantity,
+          bookedSeats: [], // Waitlist tidak menyimpan booked seats
+          seatArrangement: { 
+            rows: 1, 
+            columns: waitlistTicket.quantity 
+          } // Sederhanakan untuk waitlist
+        };
+      } else {
+        // Jika pemesanan untuk tiket reguler
+        eventTicket = event.tickets.find(
+          (t) => t.name === ticket.ticketType
+        );
 
-      // Verify each seat is valid and not already booked
-      if (ticket.seats) {
-        for (const seat of ticket.seats) {
-          // Check if seat is within range
-          if (
-            seat.row < 1 ||
-            seat.row > eventTicket.seatArrangement.rows ||
-            seat.column < 1 ||
-            seat.column > eventTicket.seatArrangement.columns
-          ) {
-            res.status(400).json({
-              success: false,
-              error: `Seat (${seat.row}, ${seat.column}) is out of range`,
-            });
-            return;
-          }
+        if (!eventTicket) {
+          res.status(400).json({
+            success: false,
+            error: `Ticket type ${ticket.ticketType} not found`,
+          });
+          return;
+        }
 
-          // Check if seat is already booked
-          const isBooked = eventTicket.bookedSeats.some(
-            (bookedSeat) =>
-              bookedSeat.row === seat.row && bookedSeat.column === seat.column
-          );
+        // Check if enough seats are available
+        if (ticket.quantity > (eventTicket.quantity - eventTicket.bookedSeats.length)) {
+          res.status(400).json({
+            success: false,
+            error: `Not enough seats available for ticket type ${ticket.ticketType}`,
+          });
+          return;
+        }
 
-          if (isBooked) {
-            res.status(400).json({
-              success: false,
-              error: `Seat (${seat.row}, ${seat.column}) is already booked`,
-            });
-            return;
+        // Verify seat selection
+        if (ticket.seats && ticket.seats.length !== ticket.quantity) {
+          res.status(400).json({
+            success: false,
+            error: `Number of seats selected (${ticket.seats.length}) does not match quantity (${ticket.quantity})`,
+          });
+          return;
+        }
+
+        // Verify each seat is valid and not already booked
+        if (ticket.seats) {
+          for (const seat of ticket.seats) {
+            // Check if seat is within range
+            if (
+              seat.row < 1 ||
+              seat.row > eventTicket.seatArrangement.rows ||
+              seat.column < 1 ||
+              seat.column > eventTicket.seatArrangement.columns
+            ) {
+              res.status(400).json({
+                success: false,
+                error: `Seat (${seat.row}, ${seat.column}) is out of range`,
+              });
+              return;
+            }
+
+            // Check if seat is already booked
+            const isBooked = eventTicket.bookedSeats.some(
+              (bookedSeat) =>
+                bookedSeat.row === seat.row && bookedSeat.column === seat.column
+            );
+
+            if (isBooked) {
+              res.status(400).json({
+                success: false,
+                error: `Seat (${seat.row}, ${seat.column}) is already booked`,
+              });
+              return;
+            }
           }
         }
       }
@@ -117,7 +150,8 @@ export const createOrder = async (
       // Add price from database to the ticket
       const processedTicket = {
         ...ticket,
-        price: eventTicket.price
+        price: eventTicket.price,
+        isWaitlist: isWaitlist ? true : false
       };
       processedTickets.push(processedTicket);
       
@@ -126,7 +160,7 @@ export const createOrder = async (
 
     // Apply discount if promo code is provided
     let discount = 0;
-    if (req.body.promoCode) {
+    if (req.body.promoCode && !isWaitlist) { // Tidak menerapkan promo untuk pemesanan waitlist
       const offer = event.promotionalOffers.find(
         (o) => o.code === req.body.promoCode && o.active
       );
@@ -162,35 +196,46 @@ export const createOrder = async (
       promoCode: req.body.promoCode,
       status: 'confirmed', // Assuming payment is made at time of order
       paymentInfo,
+      isWaitlist: isWaitlist ? true : false
     };
 
     const order = await Order.create(orderData);
 
-    // Update event's available seats and mark seats as booked
-    for (const ticket of tickets) {
-      const eventTicket = event.tickets.find(
-        (t: any) => t.name === ticket.ticketType
-      );
+    // Update event's available seats and mark seats as booked (hanya untuk tiket reguler)
+    if (!isWaitlist) {
+      for (const ticket of tickets) {
+        const eventTicket = event.tickets.find(
+          (t: any) => t.name === ticket.ticketType
+        );
 
-      if (eventTicket && ticket.seats) {
-        // Mark seats as booked
-        for (const seat of ticket.seats) {
-          eventTicket.bookedSeats.push({
-            row: seat.row,
-            column: seat.column,
-            bookingId: order._id?.toString() || order.id,
-          });
+        if (eventTicket && ticket.seats) {
+          // Mark seats as booked
+          for (const seat of ticket.seats) {
+            eventTicket.bookedSeats.push({
+              row: seat.row,
+              column: seat.column,
+              bookingId: order._id?.toString() || order.id,
+            });
+          }
         }
       }
+
+      // Update event's available seats
+      event.availableSeats -= tickets.reduce(
+        (total: number, ticket: any) => total + ticket.quantity,
+        0
+      );
+
+      await event.save();
+    } else {
+      // Untuk waitlist, update jumlah tiket waitlist yang sudah dibeli
+      for (const ticket of tickets) {
+        await WaitlistTicket.findOneAndUpdate(
+          { event: eventId, name: ticket.ticketType },
+          { $inc: { quantity: -ticket.quantity } }
+        );
+      }
     }
-
-    // Update event's available seats
-    event.availableSeats -= tickets.reduce(
-      (total: number, ticket: any) => total + ticket.quantity,
-      0
-    );
-
-    await event.save();
 
     res.status(201).json({
       success: true,

@@ -11,6 +11,11 @@ import {
   getEventTickets,
   getTicketSeats,
 } from '../controllers/tickets';
+import {
+  createWaitlistTickets,
+  getWaitlistTickets,
+} from '../controllers/waitlistTickets';
+import { validateWaitlistTickets } from '../validators/waitlistTickets';
 import { protect, authorize } from '../middlewares/auth';
 import upload from '../middlewares/upload';
 
@@ -35,5 +40,11 @@ router
 // Tickets routes
 router.route('/:id/tickets').get(getEventTickets);
 router.route('/:id/tickets/:ticketId/seats').get(getTicketSeats);
+
+// Waitlist tickets routes
+router
+  .route('/:id/waitlist-tickets')
+  .get(getWaitlistTickets) // Public access for GET
+  .post(protect, authorize('eventOrganizer', 'admin'), validateWaitlistTickets, createWaitlistTickets);
 
 export default router;

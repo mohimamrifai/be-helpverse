@@ -80,6 +80,7 @@ export interface IOrderTicket {
   quantity: number;
   seats: { row: number; column: number }[];
   price: number;
+  isWaitlist?: boolean;
 }
 
 export interface IPaymentInfo {
@@ -97,6 +98,20 @@ export interface IOrder extends Document {
   promoCode?: string;
   status: 'pending' | 'confirmed' | 'cancelled';
   paymentInfo: IPaymentInfo;
+  isWaitlist?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Waitlist Ticket Interfaces
+export interface IWaitlistTicket extends Document {
+  name: string;
+  description: string;
+  price: number;
+  quantity: number;
+  originalTicketRef: string; // Referensi ke jenis tiket asli
+  event: Types.ObjectId | IEvent;
+  createdBy: Types.ObjectId | IUser;
   createdAt: Date;
   updatedAt: Date;
 } 
