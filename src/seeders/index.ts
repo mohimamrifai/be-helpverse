@@ -45,7 +45,7 @@ const regularUser = {
 const sampleEvent = {
   name: 'Tech Conference 2025',
   description: 'The premier tech event in Asia featuring talks from industry giants, workshops on emerging technologies, and networking opportunities. Topics include AI, blockchain, cloud computing, and digital transformation strategies.',
-  date: new Date('2025-05-01'),
+  date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
   time: '09:00:00',
   location: 'Kuala Lumpur Convention Centre, 50088 Kuala Lumpur',
   image: 'event-1.png',
@@ -60,8 +60,8 @@ const sampleEvent = {
       description: 'VIP ticket for Tech Conference 2025',
       price: 100,
       quantity: 50,
-      endDate: new Date('2025-05-01'),
-      startDate: new Date('2025-04-01'),
+      endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+      startDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
       status: 'active',
       seatArrangement: {
         rows: 5,
@@ -74,8 +74,8 @@ const sampleEvent = {
       description: 'Regular ticket for Tech Conference 2025', 
       price: 50,
       quantity: 80,
-      endDate: new Date('2025-05-01'),
-      startDate: new Date('2025-04-01'),
+      endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+      startDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
       status: 'active',
       seatArrangement: {
         rows: 8,
@@ -88,8 +88,8 @@ const sampleEvent = {
       description: 'Economy ticket for Tech Conference 2025',
       price: 25,
       quantity: 100,
-      endDate: new Date('2025-05-01'),
-      startDate: new Date('2025-04-01'),
+      endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+      startDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
       status: 'active',
       seatArrangement: {
         rows: 10,
@@ -107,8 +107,8 @@ const sampleEvent = {
       discountValue: 25,
       maxUses: 100,
       currentUses: 0,
-      validFrom: new Date('2025-04-01'),
-      validUntil: new Date('2025-06-25'),
+      validFrom: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
       active: true,
     }
   ],
