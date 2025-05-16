@@ -2,6 +2,10 @@ import dotenv from 'dotenv';
 import connectDB from '../config/db';
 import User from '../models/User';
 import Event from '../models/Event';
+import Order from '../models/Order';
+import WaitingList from '../models/WaitingList';
+import Notification from '../models/Notification';
+import WaitlistTicket from '../models/WaitlistTicket';
 
 // Load env vars
 dotenv.config();
@@ -205,6 +209,10 @@ const importData = async () => {
     // Clear database
     await User.deleteMany({});
     await Event.deleteMany({});
+    await Order.deleteMany({});
+    await WaitingList.deleteMany({});
+    await Notification.deleteMany({});
+    await WaitlistTicket.deleteMany({});
     
     console.log('Data cleaned...');
 
@@ -285,6 +293,10 @@ const deleteData = async () => {
   try {
     await User.deleteMany({});
     await Event.deleteMany({});
+    await Order.deleteMany({});
+    await WaitingList.deleteMany({});
+    await Notification.deleteMany({});
+    await WaitlistTicket.deleteMany({});
 
     console.log('Data destroyed successfully!');
     process.exit();
