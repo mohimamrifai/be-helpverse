@@ -298,6 +298,107 @@
              - success: boolean
              - message: string
 
+## 8. Reports (Event Organizer):
+    # Endpoint yang tersedia
+        1. GET /api/reports/daily
+           - Deskripsi: Mendapatkan laporan penjualan harian
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - date: string (format: YYYY-MM-DD, default: hari ini)
+           - Response Body:
+             - date: Date
+             - ticketsSold: number
+             - revenue: number
+             - occupancyPercentage: number
+             - salesData: array { hour: number, count: number }
+             - revenueData: array { hour: number, amount: number }
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
+        2. GET /api/reports/weekly
+           - Deskripsi: Mendapatkan laporan penjualan mingguan
+           - Header: Authorization: Bearer {token}
+           - Response Body:
+             - startDate: Date
+             - endDate: Date
+             - ticketsSold: number
+             - revenue: number
+             - occupancyPercentage: number
+             - salesData: array { day: string, count: number }
+             - revenueData: array { day: string, amount: number }
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
+        3. GET /api/reports/monthly
+           - Deskripsi: Mendapatkan laporan penjualan bulanan
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - date: string (format: YYYY-MM-DD, default: bulan berjalan)
+           - Response Body:
+             - month: number
+             - year: number
+             - ticketsSold: number
+             - revenue: number
+             - occupancyPercentage: number
+             - salesData: array { day: number, count: number }
+             - revenueData: array { day: number, amount: number }
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
+        4. GET /api/reports/download
+           - Deskripsi: Mengunduh laporan dalam format PDF
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - type: string (enum: 'daily', 'weekly', 'monthly')
+             - date: string (format: YYYY-MM-DD)
+           - Response: File PDF yang berisi laporan sesuai dengan parameter
+             - Laporan harian: Berisi ringkasan dan detail penjualan per jam
+             - Laporan mingguan: Berisi ringkasan dan detail penjualan per hari dalam seminggu
+             - Laporan bulanan: Berisi ringkasan dan detail penjualan per tanggal dalam sebulan
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
+## 9. Auditorium (Admin):
+    # Endpoint yang tersedia
+        1. GET /api/admin/auditorium/schedule
+           - Deskripsi: Mendapatkan jadwal penggunaan auditorium
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - from: string (format: YYYY-MM-DD, default: hari ini)
+             - to: string (format: YYYY-MM-DD, default: 30 hari ke depan)
+           - Response Body:
+             - success: boolean
+             - count: number
+             - data: array jadwal (event, startTime, endTime, booked_by)
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
+        2. GET /api/admin/auditorium/events-held
+           - Deskripsi: Mendapatkan daftar event yang sudah dilaksanakan
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - from: string (format: YYYY-MM-DD, default: awal bulan berjalan)
+             - to: string (format: YYYY-MM-DD, default: hari ini)
+           - Response Body:
+             - success: boolean
+             - count: number
+             - data: array event dengan statistik (id, name, date, time, organizer, totalSeats, availableSeats, occupancy, usageHours)
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
+        3. GET /api/admin/auditorium/utilization
+           - Deskripsi: Mendapatkan data tingkat utilisasi auditorium
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - from: string (format: YYYY-MM-DD, default: 30 hari yang lalu)
+             - to: string (format: YYYY-MM-DD, default: hari ini)
+           - Response Body:
+             - success: boolean
+             - count: number
+             - data: array utilization (date, total_hours_used, total_hours_available, events, utilization_percentage)
+           - Jika data tidak tersedia:
+             - message: "Insufficient data for the selected period."
+
 ## Model Data
 
 ### 1. User
@@ -384,6 +485,23 @@
     - createdAt: Date
     - updatedAt: Date
 
+### 7. AuditoriumSchedule
+    - event: Event (required)
+    - startTime: Date (required)
+    - endTime: Date (required)
+    - booked_by: User (required)
+    - createdAt: Date
+    - updatedAt: Date
+
+### 8. Utilization
+    - date: Date (required, unique)
+    - total_hours_used: number (default: 0)
+    - total_hours_available: number (default: 24)
+    - events: array Event
+    - createdAt: Date
+    - updatedAt: Date
+    - utilization_percentage: number (virtual, calculated)
+
 ## Autentikasi dan Otorisasi
 Aplikasi ini menggunakan JSON Web Token (JWT) untuk autentikasi. Token harus disertakan dalam header Authorization dengan format "Bearer {token}" untuk endpoint yang memerlukan autentikasi. 
 
@@ -404,9 +522,44 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
 - Pengguna dengan status "orderCompleted" tidak akan menerima notifikasi tiket waitlist baru untuk event yang sama.
 - Pengguna tidak dapat memesan tiket waitlist lebih dari satu kali untuk event yang sama.
 
+## Sistem Laporan
+- Event Organizer dapat melihat laporan penjualan tiket dan occupancy untuk event mereka.
+- Laporan tersedia dalam bentuk harian, mingguan, dan bulanan.
+- Setiap laporan berisi informasi jumlah tiket terjual, pendapatan (dalam RM), persentase kursi terisi, dan grafik penjualan/pendapatan.
+- Admin dapat melihat jadwal penggunaan auditorium dan tingkat utilisasi.
+- Semua endpoint laporan mendukung custom date range.
+- Laporan dapat diunduh dalam format PDF melalui endpoint khusus untuk berbagi atau menyimpan laporan.
+- PDF laporan menggunakan Bahasa Inggris dan format mata uang RM (Ringgit Malaysia)
+- PDF berisi ringkasan lengkap serta tabel detail dengan informasi penjualan
+- Sistem menghasilkan data occupancy antara 10-85% secara deterministik berdasarkan nama event dan tanggal jika data asli tidak tersedia
+
+## Auditorium Management (Admin)
+- Dashboard khusus admin untuk memantau dan mengelola penggunaan auditorium
+- Tampilan jadwal lengkap untuk rentang tanggal yang dipilih
+- Analisis statistik event yang telah diselenggarakan (occupancy rate, jam penggunaan)
+- Grafik utilisasi auditorium untuk evaluasi efisiensi penggunaan ruang
+- Pemantauan untuk perencanaan event di masa depan hingga jangka panjang
+- Filtering data berdasarkan rentang waktu kustom (dari-sampai tanggal tertentu)
+- Dukungan data analitik untuk periode masa lalu, sekarang, dan masa depan
+- Sistem menghasilkan data utilisasi antara 30-79% secara deterministik berdasarkan hari dan tanggal jika data asli tidak tersedia (utilisasi lebih tinggi di akhir pekan)
+
 ## Catatan Penting
 - Semua data tanggal menggunakan format ISO (YYYY-MM-DD)
 - Semua waktu menggunakan format 24 jam (HH:MM)
 - Pagination tersedia untuk beberapa endpoint (lihat parameter query)
 - Pencarian full-text tersedia untuk endpoint GET /api/events
+- Event hanya dapat dijadwalkan pada hari yang sama (tidak boleh melewati tengah malam)
+- Setiap event diasumsikan memiliki durasi rata-rata 3 jam
+- Rentang tanggal pada API auditorium dapat meliputi masa depan hingga beberapa tahun
+
+## System Utilities
+- Perintah Seeder: `pnpm run seed` akan otomatis menghapus data lama dan mengimpor data baru
+- Data yang di-generate meliputi:
+  - User (admin, event organizer, dan regular user)
+  - Event (dengan jenis tiket dan harga yang bervariasi)
+  - Orders (dengan pola distribusi realistis untuk harian, mingguan, dan bulanan)
+  - Jadwal penggunaan auditorium (termasuk data masa lalu dan masa depan)
+  - Data utilisasi dan occupancy dengan nilai realistis
+- Data demo mencakup rentang waktu yang luas untuk memungkinkan pengujian semua fitur laporan
+- Dataset khusus untuk April-Mei 2025 tersedia untuk pengujian fitur auditorium management
 

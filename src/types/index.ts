@@ -128,4 +128,73 @@ export interface INotification extends Document {
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// AuditoriumSchedule Interface
+export interface IAuditoriumSchedule extends Document {
+  event: Types.ObjectId | IEvent;
+  startTime: Date;
+  endTime: Date;
+  booked_by: Types.ObjectId | IUser;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Utilization Interface
+export interface IUtilization extends Document {
+  date: Date;
+  total_hours_used: number;
+  total_hours_available: number;
+  events: Types.Array<Types.ObjectId | IEvent>;
+  createdAt: Date;
+  updatedAt: Date;
+  utilization_percentage?: number;
+}
+
+// Report Interfaces
+export interface IDailyReport {
+  date: Date;
+  ticketsSold: number;
+  revenue: number;
+  occupancyPercentage: number;
+  salesData: {
+    hour: number;
+    count: number;
+  }[];
+  revenueData: {
+    hour: number;
+    amount: number;
+  }[];
+}
+
+export interface IWeeklyReport {
+  startDate: Date;
+  endDate: Date;
+  ticketsSold: number;
+  revenue: number;
+  occupancyPercentage: number;
+  salesData: {
+    day: string;
+    count: number;
+  }[];
+  revenueData: {
+    day: string;
+    amount: number;
+  }[];
+}
+
+export interface IMonthlyReport {
+  month: number;
+  year: number;
+  ticketsSold: number;
+  revenue: number;
+  occupancyPercentage: number;
+  salesData: {
+    day: number;
+    count: number;
+  }[];
+  revenueData: {
+    day: number;
+    amount: number;
+  }[];
 } 

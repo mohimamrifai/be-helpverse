@@ -27,6 +27,8 @@ import orderRoutes from './routes/orders';
 import adminRoutes from './routes/admin';
 import waitingListRoutes from './routes/waitingList';
 import notificationRoutes from './routes/notifications';
+import reportsRoutes from './routes/reports';
+import auditoriumRoutes from './routes/admin/auditorium';
 
 const app: Application = express();
 
@@ -72,6 +74,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/waiting-list', waitingListRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/admin/auditorium', auditoriumRoutes);
 
 // Base route
 app.get('/', (req: Request, res: Response) => {
