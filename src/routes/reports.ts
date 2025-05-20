@@ -3,7 +3,8 @@ import {
   getDailyReport,
   getWeeklyReport,
   getMonthlyReport,
-  downloadReport
+  downloadReport,
+  getAllReports
 } from '../controllers/reports';
 import { protect, authorize } from '../middlewares/auth';
 
@@ -17,5 +18,6 @@ router.route('/daily').get(getDailyReport);
 router.route('/weekly').get(getWeeklyReport);
 router.route('/monthly').get(getMonthlyReport);
 router.route('/download').get(downloadReport);
+router.route('/all').get(getAllReports);
 
 export default router; 

@@ -347,16 +347,30 @@
 
         4. GET /api/reports/download
            - Deskripsi: Mengunduh laporan dalam format PDF
-           - Header: Authorization: Bearer {token}
            - Query Parameters:
-             - type: string (enum: 'daily', 'weekly', 'monthly')
-             - date: string (format: YYYY-MM-DD)
-           - Response: File PDF yang berisi laporan sesuai dengan parameter
-             - Laporan harian: Berisi ringkasan dan detail penjualan per jam
-             - Laporan mingguan: Berisi ringkasan dan detail penjualan per hari dalam seminggu
-             - Laporan bulanan: Berisi ringkasan dan detail penjualan per tanggal dalam sebulan
-           - Jika data tidak tersedia:
-             - message: "Insufficient data for the selected period."
+             - type: string (daily, weekly, monthly, all) - default: 'monthly' jika tidak disediakan atau tidak valid
+             - date: string (format: YYYY-MM-DD) - default: tanggal hari ini jika tidak disediakan atau tidak valid
+                * Tidak diperlukan untuk tipe 'weekly' dan 'all'
+                * Untuk 'daily': digunakan untuk menentukan hari spesifik
+                * Untuk 'monthly': digunakan untuk menentukan bulan dan tahun
+           - Header: Authorization: Bearer {token}
+           - Response:
+             - Content-Type: application/pdf
+             - Content-Disposition: attachment; filename=[tipe-laporan].pdf
+           - Respons Error:
+             - Status 200, Jika tidak ada data: `{ message: "Insufficient data for the selected period." }`
+             - Status 500, Jika terjadi kesalahan: `{ message: "Error generating PDF report", error: "detail error" }`
+           - Keterangan:
+             - Laporan PDF akan berisi semua data penting, termasuk grafik dan tabel
+             - Tipe 'daily' berisi data penjualan per jam
+             - Tipe 'weekly' berisi data penjualan per hari dalam seminggu
+             - Tipe 'monthly' berisi data penjualan per tanggal dalam sebulan
+             - Tipe 'all' berisi data lengkap termasuk:
+                * Ringkasan umum (total orders, confirmed orders, revenue, occupancy)
+                * Sampel transaksi terbaru
+                * Ringkasan per event (hingga 15 event teratas)
+                * Data okupansi harian (20 hari terakhir)
+                * Distribusi status order (confirmed, pending, cancelled)
 
 ## 9. Auditorium (Admin):
     # Endpoint yang tersedia
@@ -502,6 +516,34 @@
     - updatedAt: Date
     - utilization_percentage: number (virtual, calculated)
 
+### 8. IAllReports
+    - totalOrders: number (jumlah total order)
+    - confirmedOrders: number (jumlah order dengan status 'confirmed')
+    - ticketsSold: number (jumlah tiket yang terjual)
+    - revenue: number (total pendapatan)
+    - occupancyPercentage: number (persentase kursi terisi)
+    - ordersData: array (detail semua order dengan informasi berikut)
+      - id: string
+      - date: Date
+      - eventId: string
+      - eventName: string
+      - totalAmount: number
+      - ticketCount: number
+      - status: string
+      - customerName: string
+      - customerEmail: string
+    - ordersByDate: object (order dikelompokkan berdasarkan tanggal)
+    - eventSummary: array (ringkasan per event dengan informasi berikut)
+      - id: string
+      - name: string
+      - totalOrders: number
+      - confirmedOrders: number
+      - ticketsSold: number
+      - revenue: number
+      - occupancyPercentage: number
+    - occupancyByDate: object (persentase okupansi per tanggal dalam format {YYYY-MM-DD: persentase})
+    - message?: string (opsional, hanya muncul jika ada pesan khusus)
+
 ## Autentikasi dan Otorisasi
 Aplikasi ini menggunakan JSON Web Token (JWT) untuk autentikasi. Token harus disertakan dalam header Authorization dengan format "Bearer {token}" untuk endpoint yang memerlukan autentikasi. 
 
@@ -532,6 +574,151 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
 - PDF laporan menggunakan Bahasa Inggris dan format mata uang RM (Ringgit Malaysia)
 - PDF berisi ringkasan lengkap serta tabel detail dengan informasi penjualan
 - Sistem menghasilkan data occupancy antara 10-85% secara deterministik berdasarkan nama event dan tanggal jika data asli tidak tersedia
+- Endpoint khusus `/api/reports/all` tersedia untuk mendapatkan seluruh data laporan tanpa filter periode waktu. Data ini dapat diolah di sisi client dengan melakukan filtering berdasarkan kebutuhan.
+- **PENTING**: Endpoint `/api/reports/all` selalu mengembalikan struktur data lengkap, bahkan ketika tidak ada data order atau event yang ditemukan. Ini memudahkan pengembang frontend untuk menangani data secara konsisten.
+
+### Endpoint Laporan yang Tersedia
+1. GET /api/reports/daily
+   - Deskripsi: Mendapatkan laporan penjualan harian
+   - Query Parameters:
+     - date: string (format: YYYY-MM-DD, default: hari ini)
+   - Header: Authorization: Bearer {token}
+   - Response Body: Data laporan harian
+
+2. GET /api/reports/weekly
+   - Deskripsi: Mendapatkan laporan penjualan mingguan untuk minggu saat ini
+   - Header: Authorization: Bearer {token}
+   - Response Body: Data laporan mingguan
+
+3. GET /api/reports/monthly
+   - Deskripsi: Mendapatkan laporan penjualan bulanan
+   - Query Parameters:
+     - date: string (format: YYYY-MM-DD, default: bulan ini)
+   - Header: Authorization: Bearer {token}
+   - Response Body: Data laporan bulanan
+
+4. GET /api/reports/all
+   - Deskripsi: Mendapatkan seluruh data laporan tanpa filter periode waktu
+   - Header: Authorization: Bearer {token}
+   - Response Body:
+     - totalOrders: number (jumlah total order, termasuk semua status)
+     - confirmedOrders: number (jumlah order dengan status 'confirmed')
+     - ticketsSold: number (jumlah tiket terjual dari order confirmed)
+     - revenue: number (total pendapatan dari order confirmed)
+     - occupancyPercentage: number (persentase kursi terisi)
+     - ordersData: array (detail semua order dengan struktur berikut):
+       - id: string (ID order)
+       - date: Date (tanggal pembuatan order)
+       - eventId: string (ID event)
+       - eventName: string (nama event)
+       - totalAmount: number (jumlah total pembayaran)
+       - ticketCount: number (jumlah tiket dalam order)
+       - status: string (status order: 'pending', 'confirmed', 'cancelled')
+       - customerName: string (nama customer)
+       - customerEmail: string (email customer)
+     - ordersByDate: object (order dikelompokkan berdasarkan tanggal dalam format YYYY-MM-DD)
+     - eventSummary: array (ringkasan data per event):
+       - id: string (ID event)
+       - name: string (nama event)
+       - totalOrders: number (jumlah total order untuk event ini)
+       - confirmedOrders: number (jumlah order confirmed untuk event ini)
+       - ticketsSold: number (jumlah tiket terjual untuk event ini)
+       - revenue: number (total pendapatan untuk event ini)
+       - occupancyPercentage: number (persentase kursi terisi untuk event ini)
+     - occupancyByDate: object (persentase okupansi harian dalam format {YYYY-MM-DD: persentase})
+
+5. GET /api/reports/download
+   - Deskripsi: Mengunduh laporan dalam format PDF
+   - Query Parameters:
+     - type: string (daily, weekly, monthly, all)
+     - date: string (format: YYYY-MM-DD, tidak diperlukan untuk weekly dan all)
+   - Header: Authorization: Bearer {token}
+   - Response: File PDF
+
+### Penanganan Kasus Tidak Ada Data
+
+- Untuk endpoint `/api/reports/daily`, `/api/reports/weekly`, dan `/api/reports/monthly`:
+  Jika tidak ada data yang ditemukan untuk periode waktu tertentu, API akan mengembalikan pesan: 
+  ```json
+  {
+    "message": "Insufficient data for the selected period."
+  }
+  ```
+
+- Untuk endpoint `/api/reports/all`:
+  Bahkan jika tidak ada event atau order yang ditemukan, API akan selalu mengembalikan struktur data lengkap dengan nilai default (0 untuk angka, array kosong untuk koleksi), contoh:
+  ```json
+  {
+    "totalOrders": 0,
+    "confirmedOrders": 0,
+    "ticketsSold": 0,
+    "revenue": 0,
+    "occupancyPercentage": 0,
+    "ordersData": [],
+    "ordersByDate": {},
+    "eventSummary": [],
+    "occupancyByDate": {}
+  }
+  ```
+
+### Penanganan Parameter pada Endpoint Download
+
+Endpoint `/api/reports/download` memiliki mekanisme fallback untuk memastikan API tetap beroperasi bahkan dengan parameter yang tidak lengkap atau tidak valid:
+
+1. **Parameter `type`**:
+   - Nilai valid: 'daily', 'weekly', 'monthly', 'all'
+   - Jika tidak disediakan atau tidak valid: menggunakan 'monthly' sebagai default
+   - Contoh valid: `?type=daily` atau `?type=all`
+
+2. **Parameter `date`**:
+   - Format valid: YYYY-MM-DD
+   - Jika tidak disediakan: menggunakan tanggal hari ini
+   - Jika format tidak valid: menggunakan tanggal hari ini sebagai fallback
+   - Contoh valid: `?date=2025-05-20`
+
+3. **Kombinasi Parameter**:
+   - Mengunduh laporan harian untuk 20 Mei 2025: `?type=daily&date=2025-05-20`
+   - Mengunduh laporan bulanan untuk Mei 2025: `?type=monthly&date=2025-05-01` (tanggal berapa saja di bulan tersebut)
+   - Mengunduh laporan mingguan untuk minggu saat ini: `?type=weekly` (parameter date diabaikan)
+   - Mengunduh laporan lengkap semua waktu: `?type=all` (parameter date diabaikan)
+
+4. **Jika tidak ada parameter**:
+   - Contoh: `/api/reports/download`
+   - Secara default akan menghasilkan laporan bulanan untuk bulan berjalan
+
+### Format PDF
+
+Laporan PDF yang dihasilkan memiliki format yang berbeda tergantung jenis laporan:
+
+1. **Laporan Harian** (type=daily):
+   - Ringkasan: jumlah tiket terjual, pendapatan, dan okupansi
+   - Tabel penjualan per jam dengan jumlah tiket dan pendapatan
+
+2. **Laporan Mingguan** (type=weekly):
+   - Ringkasan: jumlah tiket terjual, pendapatan, dan okupansi
+   - Tabel penjualan per hari dengan jumlah tiket dan pendapatan
+
+3. **Laporan Bulanan** (type=monthly):
+   - Ringkasan: jumlah tiket terjual, pendapatan, dan okupansi
+   - Tabel penjualan per tanggal dengan jumlah tiket dan pendapatan
+
+4. **Laporan Lengkap** (type=all):
+   - Ringkasan: total orders, confirmed orders, jumlah tiket terjual, pendapatan, dan okupansi
+   - Sampel 10 transaksi terbaru dengan status
+   - Tabel ringkasan event (15 event teratas berdasarkan pendapatan)
+   - Tabel data okupansi harian untuk 20 hari terakhir (dari occupancyByDate)
+   - Analisis distribusi status order (confirmed, pending, cancelled)
+
+### Praktik Terbaik Penggunaan Endpoint Reports
+
+1. Gunakan endpoint `/api/reports/all` untuk mendapatkan data lengkap yang dapat difilter pada sisi client
+2. Jika hanya membutuhkan data untuk periode tertentu, gunakan endpoint spesifik (daily/weekly/monthly)
+3. Selalu periksa keberadaan data sebelum mengakses properti dalam respons
+4. Untuk visualisasi data:
+   - Gunakan `ordersByDate` untuk grafik tren waktu
+   - Gunakan `eventSummary` untuk perbandingan antar event
+   - Gunakan `ordersData` untuk tabel detail atau analisis per order
+   - Gunakan `occupancyByDate` untuk menampilkan grafik okupansi harian
 
 ## Auditorium Management (Admin)
 - Dashboard khusus admin untuk memantau dan mengelola penggunaan auditorium

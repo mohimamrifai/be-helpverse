@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import Order from '../models/Order';
 import Event from '../models/Event';
-import { IUser, IDailyReport, IWeeklyReport, IMonthlyReport } from '../types';
+import { IUser, IDailyReport, IWeeklyReport, IMonthlyReport, IAllReports } from '../types';
 import mongoose from 'mongoose';
 import moment from 'moment';
 import PDFDocument from 'pdfkit';
+import { generatePdfReport } from '../utils/pdfGenerator';
 
 // Interface for request with user
 interface AuthRequest extends Request {
@@ -22,6 +23,11 @@ export const getDailyReport = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Set no-cache headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     const targetDate = req.query.date 
       ? new Date(req.query.date as string) 
       : new Date();
@@ -126,6 +132,11 @@ export const getWeeklyReport = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Set no-cache headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     // Get first day of the week (Monday)
     const today = new Date();
     const currentDay = today.getDay();
@@ -241,6 +252,11 @@ export const getMonthlyReport = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Set no-cache headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     const targetDate = req.query.date 
       ? new Date(req.query.date as string) 
       : new Date();
@@ -359,192 +375,176 @@ export const downloadReport = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Jenis report (daily, weekly, monthly)
-    const type = req.query.type || 'monthly';
-    const date = req.query.date ? new Date(req.query.date as string) : new Date();
+    // Set no-cache headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // Log request parameters
+    console.log('Download report requested with params:', req.query);
+    
+    // Validasi jenis report (daily, weekly, monthly, all) dengan default 'monthly'
+    const validTypes = ['daily', 'weekly', 'monthly', 'all'];
+    const type = req.query.type && validTypes.includes(req.query.type as string) 
+      ? req.query.type as string 
+      : 'monthly';
+    
+    console.log(`Report type selected: ${type}`);
+    
+    // Validasi parameter date
+    let date: Date;
+    
+    if (req.query.date) {
+      // Coba parse date dari query parameter
+      try {
+        date = new Date(req.query.date as string);
+        
+        // Periksa apakah date valid
+        if (isNaN(date.getTime())) {
+          console.warn(`Invalid date parameter provided: ${req.query.date}, using current date`);
+          date = new Date();
+        } else {
+          console.log(`Using provided date: ${date.toISOString().split('T')[0]}`);
+        }
+      } catch (error) {
+        console.warn(`Error parsing date parameter: ${req.query.date}, using current date`);
+        date = new Date();
+      }
+    } else {
+      // Jika tidak ada parameter date, gunakan tanggal hari ini
+      date = new Date();
+      console.log(`No date parameter provided, using current date: ${date.toISOString().split('T')[0]}`);
+    }
     
     let report: any;
     let reportTitle = '';
     let reportFilename = '';
     
-    switch(type) {
-      case 'daily':
-        report = await getDailyReportData(req.user, date);
-        reportTitle = `Daily Report - ${moment(date).locale('en').format('DD MMMM YYYY')}`;
-        reportFilename = `daily-report-${moment(date).format('YYYY-MM-DD')}`;
-        break;
-      
-      case 'weekly':
-        report = await getWeeklyReportData(req.user);
-        const startDate = moment().startOf('week').add(1, 'days');
-        const endDate = moment().endOf('week').add(1, 'days');
-        reportTitle = `Weekly Report - ${startDate.locale('en').format('DD MMM')} to ${endDate.locale('en').format('DD MMM YYYY')}`;
-        reportFilename = `weekly-report-${startDate.format('YYYY-MM-DD')}-${endDate.format('YYYY-MM-DD')}`;
-        break;
-      
-      case 'monthly':
-      default:
-        report = await getMonthlyReportData(req.user, date);
-        reportTitle = `Monthly Report - ${moment(date).locale('en').format('MMMM YYYY')}`;
-        reportFilename = `monthly-report-${moment(date).format('YYYY-MM')}`;
-        break;
+    // Dapatkan data berdasarkan tipe report
+    try {
+      switch(type) {
+        case 'daily':
+          console.log(`Generating daily report for date: ${date.toISOString().split('T')[0]}`);
+          report = await getDailyReportData(req.user, date);
+          reportTitle = `Daily Report - ${moment(date).locale('en').format('DD MMMM YYYY')}`;
+          reportFilename = `daily-report-${moment(date).format('YYYY-MM-DD')}`;
+          break;
+        
+        case 'weekly':
+          console.log('Generating weekly report for current week');
+          report = await getWeeklyReportData(req.user);
+          const startDate = moment().startOf('week').add(1, 'days');
+          const endDate = moment().endOf('week').add(1, 'days');
+          reportTitle = `Weekly Report - ${startDate.locale('en').format('DD MMM')} to ${endDate.locale('en').format('DD MMM YYYY')}`;
+          reportFilename = `weekly-report-${startDate.format('YYYY-MM-DD')}-${endDate.format('YYYY-MM-DD')}`;
+          break;
+        
+        case 'all':
+          console.log('Generating all-time report');
+          report = await getAllReportsData(req.user);
+          reportTitle = `All Time Report - As of ${moment().locale('en').format('DD MMMM YYYY')}`;
+          reportFilename = `all-time-report-${moment().format('YYYY-MM-DD')}`;
+          break;
+        
+        case 'monthly':
+        default:
+          console.log(`Generating monthly report for: ${date.toISOString().split('T')[0].substring(0, 7)}`);
+          report = await getMonthlyReportData(req.user, date);
+          reportTitle = `Monthly Report - ${moment(date).locale('en').format('MMMM YYYY')}`;
+          reportFilename = `monthly-report-${moment(date).format('YYYY-MM')}`;
+          break;
+      }
+    } catch (error) {
+      console.error("Error retrieving report data:", error);
+      return next(new Error("Failed to retrieve report data"));
     }
     
-    if (!report || (typeof report === 'object' && 'message' in report)) {
+    if (!report) {
+      console.warn("Report data is null or undefined");
       res.status(200).json({
         message: "Insufficient data for the selected period."
       });
       return;
     }
+    
+    if (typeof report === 'object' && 'message' in report) {
+      console.log(`Returning message to client: ${report.message}`);
+      res.status(200).json({
+        message: report.message
+      });
+      return;
+    }
 
-    // Membuat dokumen PDF
-    const doc = new PDFDocument({ margin: 50 });
+    // Buat PDF
+    try {
+      console.log(`Generating PDF for ${type} report with title: ${reportTitle}`);
 
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${reportFilename}.pdf`);
+      // Membuat dokumen PDF
+      const doc = new PDFDocument({ 
+        margin: 40, 
+        bufferPages: true,
+        size: 'A4',
+        info: {
+          Title: reportTitle,
+          Author: 'HelpVerse',
+          CreationDate: new Date()
+        }
+      });
+      
+      // Hapus handler lain yang mungkin mengintervensi
+      req.on('close', () => {
+        // Hentikan pembuatan PDF jika koneksi ditutup
+        try {
+          doc.end();
+          console.log('Connection closed by client, PDF generation stopped');
+        } catch (e) {
+          console.error("Error ending PDF document on connection close:", e);
+        }
+      });
 
-    // Pipe the PDF to the response
-    doc.pipe(res);
+      // Set headers sebelum mengirim data
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${reportFilename}.pdf`);
 
-    // Tambahkan konten ke PDF
-    generatePdfReport(doc, report, reportTitle, type as string);
+      // Gunakan buffer memori untuk menyimpan PDF, bukan pipe langsung
+      const chunks: Buffer[] = [];
+      
+      doc.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+      
+      doc.on('end', () => {
+        if (!res.headersSent) {
+          // Gabungkan semua chunk dan kirim sebagai satu respons
+          const result = Buffer.concat(chunks);
+          console.log(`PDF generated successfully, size: ${result.length} bytes`);
+          res.send(result);
+        } else {
+          console.warn('Headers already sent, cannot send PDF data');
+        }
+      });
 
-    // Finalize the PDF and end the stream
-    doc.end();
+      // Tambahkan konten ke PDF dengan fungsi terpisah
+      generatePdfReport(doc, report, reportTitle, type);
+      
+      // Finalisasi dokumen
+      doc.end();
+      console.log('PDF document finalized, waiting for all chunks...');
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          message: "Error generating PDF report",
+          error: error instanceof Error ? error.message : String(error)
+        });
+      } else {
+        console.error('Headers already sent, cannot send error response');
+      }
+    }
   } catch (err) {
+    console.error("Unexpected error in downloadReport:", err);
     next(err);
   }
-};
-
-/**
- * Generate PDF report
- */
-const generatePdfReport = (doc: PDFKit.PDFDocument, report: any, title: string, type: string) => {
-  // Add title
-  doc.fontSize(20).text(title, { align: 'center' });
-  doc.moveDown();
-
-  // Add heading
-  doc.fontSize(16).text('Summary:', { underline: true });
-  doc.moveDown(0.5);
-
-  // Add summary
-  doc.fontSize(12);
-  doc.text(`Tickets Sold: ${report.ticketsSold} tickets`);
-  doc.text(`Revenue: RM ${report.revenue.toLocaleString('en-MY')}`);
-  doc.text(`Occupancy Rate: ${report.occupancyPercentage.toFixed(2)}%`);
-  doc.moveDown();
-
-  // Tambahkan data berdasarkan tipe report
-  if (type === 'daily') {
-    // Data untuk laporan harian
-    doc.fontSize(16).text('Sales Details by Hour:', { underline: true });
-    doc.moveDown(0.5);
-
-    // Tabel sederhana untuk data per jam
-    const salesData = report.salesData;
-    doc.fontSize(12);
-    
-    let y = doc.y;
-    doc.text('Hour', 50, y);
-    doc.text('Tickets Sold', 150, y);
-    doc.text('Revenue (RM)', 250, y);
-    
-    // Garis tabel
-    y += 15;
-    doc.moveTo(50, y).lineTo(500, y).stroke();
-    y += 10;
-
-    // Hanya tampilkan jam dengan penjualan
-    const filteredHours = salesData.filter((data: { count: number }) => data.count > 0);
-    filteredHours.forEach((data: { hour: number; count: number }, index: number) => {
-      const hour = data.hour;
-      const count = data.count;
-      const amount = report.revenueData[hour].amount;
-      
-      doc.text(`${hour}:00`, 50, y);
-      doc.text(`${count}`, 150, y);
-      doc.text(`${amount.toLocaleString('en-MY')}`, 250, y);
-      
-      y += 20;
-      if (y > 700) {
-        doc.addPage();
-        y = 50;
-      }
-    });
-  }
-  else if (type === 'weekly') {
-    // Data untuk laporan mingguan
-    doc.fontSize(16).text('Sales Details by Day:', { underline: true });
-    doc.moveDown(0.5);
-
-    // Tabel sederhana untuk data per hari
-    const salesData = report.salesData;
-    doc.fontSize(12);
-    
-    let y = doc.y;
-    doc.text('Day', 50, y);
-    doc.text('Tickets Sold', 150, y);
-    doc.text('Revenue (RM)', 250, y);
-    
-    // Garis tabel
-    y += 15;
-    doc.moveTo(50, y).lineTo(500, y).stroke();
-    y += 10;
-
-    salesData.forEach((data: { day: string; count: number }, index: number) => {
-      doc.text(`${data.day}`, 50, y);
-      doc.text(`${data.count}`, 150, y);
-      doc.text(`${report.revenueData[index].amount.toLocaleString('en-MY')}`, 250, y);
-      
-      y += 20;
-    });
-  }
-  else if (type === 'monthly') {
-    // Data untuk laporan bulanan
-    doc.fontSize(16).text(`Sales Details - ${moment().month(report.month - 1).locale('en').format('MMMM')} ${report.year}:`, { underline: true });
-    doc.moveDown(0.5);
-
-    // Tabel sederhana untuk data per tanggal
-    const salesData = report.salesData;
-    doc.fontSize(12);
-    
-    let y = doc.y;
-    doc.text('Date', 50, y);
-    doc.text('Tickets Sold', 150, y);
-    doc.text('Revenue (RM)', 250, y);
-    
-    // Garis tabel
-    y += 15;
-    doc.moveTo(50, y).lineTo(500, y).stroke();
-    y += 10;
-
-    // Hanya tampilkan tanggal dengan penjualan
-    const filteredDays = salesData.filter((data: { count: number }) => data.count > 0);
-    filteredDays.forEach((data: { day: number; count: number }, index: number) => {
-      doc.text(`${data.day}`, 50, y);
-      doc.text(`${data.count}`, 150, y);
-      
-      // Cari data pendapatan yang sesuai
-      const revenueData = report.revenueData.find((r: { day: number }) => r.day === data.day);
-      doc.text(`${revenueData ? revenueData.amount.toLocaleString('en-MY') : 0}`, 250, y);
-      
-      y += 20;
-      if (y > 700) {
-        doc.addPage();
-        y = 50;
-      }
-    });
-  }
-
-  // Tambahkan catatan kaki
-  doc.fontSize(10);
-  const now = new Date();
-  doc.text(`Report generated on: ${moment(now).locale('en').format('DD MMMM YYYY HH:mm')}`, { align: 'right' });
-  doc.text('HelpVerse Events Management System', { align: 'right' });
-
-  return doc;
 };
 
 // Helper functions untuk mengambil data report tanpa mengirim response
@@ -828,4 +828,296 @@ const getMonthlyReportData = async (user: IUser | undefined, targetDate: Date) =
   };
 
   return report;
+};
+
+/**
+ * Get all reports data without sending response
+ */
+const getAllReportsData = async (user: IUser | undefined) => {
+  console.log('getAllReportsData called for user:', user?.username || 'Unknown');
+  
+  // Get user's events if event organizer
+  let eventIdsQuery = {};
+  let events = [];
+  
+  if (user?.role === 'eventOrganizer') {
+    console.log('User is event organizer, finding their events');
+    const userEvents = await Event.find({ createdBy: user._id });
+    console.log('Found', userEvents.length, 'events for this organizer');
+    
+    events = userEvents;
+    const eventIds = userEvents.map(event => event._id);
+    
+    if (eventIds.length === 0) {
+      console.log('No events found for this organizer');
+      return { 
+        message: "No events found for this organizer.",
+        totalOrders: 0,
+        confirmedOrders: 0,
+        ticketsSold: 0,
+        revenue: 0,
+        occupancyPercentage: 0,
+        ordersData: [],
+        ordersByDate: {},
+        eventSummary: [],
+        occupancyByDate: {}
+      };
+    }
+    
+    eventIdsQuery = { event: { $in: eventIds } };
+  } else {
+    console.log('User is admin, will fetch all events');
+    events = await Event.find({});
+  }
+
+  // Get all orders without status filter first
+  console.log('Finding orders with query:', JSON.stringify(eventIdsQuery));
+  const allOrders = await Order.find({
+    ...eventIdsQuery
+  }).populate('event', 'name totalSeats availableSeats');
+
+  console.log('Found', allOrders.length, 'total orders');
+  
+  // Filter confirmed orders
+  const confirmedOrders = allOrders.filter(order => order.status === 'confirmed');
+  console.log('Of which', confirmedOrders.length, 'are confirmed orders');
+  
+  // If no orders at all, return empty data structure instead of message
+  if (allOrders.length === 0) {
+    console.log('No orders found at all, returning empty data structure');
+    return {
+      totalOrders: 0,
+      confirmedOrders: 0,
+      ticketsSold: 0,
+      revenue: 0,
+      occupancyPercentage: 0,
+      ordersData: [],
+      ordersByDate: {},
+      eventSummary: [],
+      occupancyByDate: {}
+    };
+  }
+
+  // Calculate total tickets sold (from confirmed orders only)
+  const ticketsSold = confirmedOrders.reduce((total, order) => {
+    return total + order.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
+  }, 0);
+  console.log('Total tickets sold (from confirmed orders):', ticketsSold);
+
+  // Calculate total revenue (from confirmed orders only)
+  const revenue = confirmedOrders.reduce((total, order) => total + order.totalAmount, 0);
+  console.log('Total revenue (from confirmed orders):', revenue);
+
+  // Calculate seat occupancy based on events
+  let totalSeats = 0;
+  let filledSeats = 0;
+
+  events.forEach(event => {
+    if (event.totalSeats) {
+      totalSeats += event.totalSeats;
+      filledSeats += (event.totalSeats - event.availableSeats);
+    }
+  });
+
+  const occupancyPercentage = totalSeats > 0 ? (filledSeats / totalSeats) * 100 : 0;
+  console.log('Total seats:', totalSeats, 'Filled seats:', filledSeats);
+  console.log('Occupancy percentage:', occupancyPercentage.toFixed(2) + '%');
+
+  // Prepare order data with essential details (all orders)
+  console.log('Preparing ordersData from all orders');
+  const ordersData = allOrders.map(order => {
+    const eventObj = order.event as any;
+    return {
+      id: (order as any)._id.toString(),
+      date: order.createdAt,
+      eventId: eventObj?._id ? eventObj._id.toString() : '',
+      eventName: eventObj?.name || 'Unknown Event',
+      totalAmount: order.totalAmount,
+      ticketCount: order.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0),
+      status: order.status,
+      customerName: (order as any).customerName || '',
+      customerEmail: (order as any).customerEmail || ''
+    };
+  });
+  console.log('Generated ordersData with', ordersData.length, 'entries');
+
+  // Group data by date for easy client-side processing
+  console.log('Grouping orders by date');
+  const ordersByDate: Record<string, any[]> = {};
+  
+  allOrders.forEach(order => {
+    const dateStr = new Date(order.createdAt).toISOString().split('T')[0];
+    if (!ordersByDate[dateStr]) {
+      ordersByDate[dateStr] = [];
+    }
+    
+    const eventObj = order.event as any;
+    ordersByDate[dateStr].push({
+      id: (order as any)._id.toString(),
+      eventId: eventObj?._id ? eventObj._id.toString() : '',
+      eventName: eventObj?.name || 'Unknown Event',
+      totalAmount: order.totalAmount,
+      status: order.status,
+      ticketCount: order.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0),
+    });
+  });
+  console.log('Grouped orders by', Object.keys(ordersByDate).length, 'different dates');
+
+  // Group by event for summary
+  const eventSummary = events.map(event => {
+    const eventOrders = allOrders.filter(order => 
+      order.event && typeof order.event === 'object' && 
+      'id' in order.event && order.event.id === event.id
+    );
+    
+    const confirmedEventOrders = eventOrders.filter(order => order.status === 'confirmed');
+    
+    const ticketsSold = confirmedEventOrders.reduce((total, order) => {
+      return total + order.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
+    }, 0);
+    
+    const revenue = confirmedEventOrders.reduce((total, order) => total + order.totalAmount, 0);
+    
+    return {
+      id: event.id,
+      name: event.name,
+      totalOrders: eventOrders.length,
+      confirmedOrders: confirmedEventOrders.length,
+      ticketsSold,
+      revenue,
+      occupancyPercentage: (eventOrders.length === 0 || ticketsSold === 0) 
+        ? 0 // Jika belum ada pesanan atau tiket terjual, occupancy adalah 0%
+        : (event.totalSeats > 0 
+          ? ((event.totalSeats - event.availableSeats) / event.totalSeats) * 100 
+          : 0)
+    };
+  });
+
+  // Calculate occupancy by date
+  console.log('Calculating occupancy by date');
+  const occupancyByDate: Record<string, number> = {};
+  
+  // Get all unique dates from orders
+  const orderDates = [...new Set(allOrders.map(order => 
+    new Date(order.createdAt).toISOString().split('T')[0]
+  ))];
+  
+  // For each date, calculate occupancy
+  orderDates.forEach(dateStr => {
+    // Get confirmed orders for this date
+    const confirmedOrdersOnDate = allOrders.filter(order => {
+      const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
+      return orderDate === dateStr && order.status === 'confirmed';
+    });
+    
+    // If no confirmed orders on this date, set occupancy to 0%
+    if (confirmedOrdersOnDate.length === 0) {
+      occupancyByDate[dateStr] = 0;
+      return;
+    }
+    
+    // Get all events that had orders on this date
+    const eventsOnDate = new Set<string>();
+    
+    // Collect all event IDs from confirmed orders
+    confirmedOrdersOnDate.forEach(order => {
+      if (order.event && typeof order.event === 'object' && 'id' in order.event) {
+        eventsOnDate.add(order.event.id);
+      }
+    });
+    
+    // Calculate occupancy for this date
+    let dailyTotalSeats = 0;
+    let dailyFilledSeats = 0;
+    
+    eventsOnDate.forEach(eventId => {
+      const event = events.find(e => e.id === eventId);
+      if (event && event.totalSeats) {
+        dailyTotalSeats += event.totalSeats;
+        dailyFilledSeats += (event.totalSeats - event.availableSeats);
+      }
+    });
+    
+    // If no events with seats on this date, set occupancy to 0%
+    if (dailyTotalSeats === 0) {
+      occupancyByDate[dateStr] = 0;
+    } else {
+      occupancyByDate[dateStr] = (dailyFilledSeats / dailyTotalSeats) * 100;
+    }
+  });
+  
+  console.log('Generated occupancyByDate for', Object.keys(occupancyByDate).length, 'dates');
+
+  const report: IAllReports = {
+    totalOrders: allOrders.length,
+    confirmedOrders: confirmedOrders.length,
+    ticketsSold,
+    revenue,
+    occupancyPercentage,
+    ordersData,
+    ordersByDate,
+    eventSummary,
+    occupancyByDate
+  };
+
+  console.log('Report generated successfully');
+  return report;
+};
+
+/**
+ * @desc    Get all reports data (no date filter)
+ * @route   GET /api/reports/all
+ * @access  Private (Event Organizer, Admin)
+ */
+export const getAllReports = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Set no-cache headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    console.log('GET /api/reports/all requested by user:', req.user?.username || 'Unknown');
+    
+    const report = await getAllReportsData(req.user);
+    
+    console.log('Report data generated:');
+    console.log('- Total Orders:', report && 'totalOrders' in report ? report.totalOrders : 'N/A');
+    console.log('- Tickets Sold:', report && 'ticketsSold' in report ? report.ticketsSold : 'N/A');
+    console.log('- Revenue:', report && 'revenue' in report ? report.revenue : 'N/A');
+    console.log('- Orders data length:', report && 'ordersData' in report ? (report.ordersData as any[]).length : 'N/A');
+    console.log('- OrdersByDate keys:', report && 'ordersByDate' in report ? Object.keys(report.ordersByDate || {}).length : 'N/A');
+    
+    if (report && 'message' in report) {
+      console.log('No data available message:', report.message);
+      res.status(200).json({
+        message: report.message
+      });
+      return;
+    }
+    
+    // Check if report contains all required fields
+    const requiredFields = ['totalOrders', 'ticketsSold', 'revenue', 'occupancyPercentage', 'ordersData', 'ordersByDate'];
+    const missingFields = requiredFields.filter(field => !(field in report));
+    
+    if (missingFields.length > 0) {
+      console.warn('Warning: Report is missing some required fields:', missingFields);
+    }
+    
+    // Print report structure (without full data)
+    console.log('Report structure:', JSON.stringify({
+      ...report,
+      ordersData: report.ordersData ? '[array with ' + report.ordersData.length + ' items]' : null,
+      ordersByDate: report.ordersByDate ? '{object with ' + Object.keys(report.ordersByDate).length + ' keys}' : null
+    }, null, 2));
+    
+    console.log('Sending complete report response');
+    res.status(200).json(report);
+  } catch (err) {
+    console.error('Error in getAllReports:', err);
+    next(err);
+  }
 }; 

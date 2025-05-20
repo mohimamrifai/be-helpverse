@@ -494,6 +494,11 @@ export const getMyEvents = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Set no-cache headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     if (!req.user) {
       res.status(401).json({
         success: false,

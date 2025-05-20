@@ -739,12 +739,12 @@ const importData = async (shouldExit = true) => {
         orderDate.setDate(orderDate.getDate() - day);
         
         // Create more orders for recent days (more realistic distribution)
-        const ordersToCreate = Math.max(1, Math.floor(10 * Math.exp(-day/30)));
+        const ordersToCreate = Math.max(2, Math.floor(12 * Math.exp(-day/30)));
         
         for (let i = 0; i < ordersToCreate; i++) {
           const randomEvent = allEvents[Math.floor(Math.random() * allEvents.length)];
           const randomUser = users[Math.floor(Math.random() * users.length)];
-          const randomStatus = Math.random() < 0.7 ? 'confirmed' : orderStatuses[Math.floor(Math.random() * 3)]; // 70% confirmed orders
+          const randomStatus = Math.random() < 0.85 ? 'confirmed' : orderStatuses[Math.floor(Math.random() * 3)]; // 85% confirmed orders
           const randomQuantity = Math.floor(Math.random() * 5) + 1;
           const randomPrice = Math.floor(Math.random() * 100) + 50;
           const randomTicketType = allTicketTypes[Math.floor(Math.random() * allTicketTypes.length)];
@@ -780,6 +780,66 @@ const importData = async (shouldExit = true) => {
     
     // Create random distribution of orders for past 90 days
     await createOrdersForPastDays(90);
+    
+    // Ensure every event organizer has at least some confirmed orders
+    console.log("Ensuring every event organizer has confirmed orders...");
+    
+    const eventOrganizers = await User.find({ role: 'eventOrganizer' });
+    for (const organizer of eventOrganizers) {
+      // Get events created by this organizer
+      const organizerEvents = await Event.find({ createdBy: organizer._id });
+      
+      if (organizerEvents.length > 0) {
+        console.log(`Creating confirmed orders for organizer: ${organizer.username}`);
+        
+        // Check if organizer already has confirmed orders
+        const existingOrders = await Order.find({
+          event: { $in: organizerEvents.map(event => event._id) },
+          status: 'confirmed'
+        });
+        
+        if (existingOrders.length < 5) {
+          // Create at least 5 confirmed orders for each event organizer
+          const ordersToCreate = 15 - existingOrders.length;
+          
+          for (let i = 0; i < ordersToCreate; i++) {
+            // Pick a random event from this organizer
+            const event = organizerEvents[Math.floor(Math.random() * organizerEvents.length)];
+            
+            // Create order for a random date in the past 30 days
+            const orderDate = new Date();
+            const randomDaysAgo = Math.floor(Math.random() * 30);
+            orderDate.setDate(orderDate.getDate() - randomDaysAgo);
+            orderDate.setHours(10 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 60), 0, 0);
+            
+            const randomQuantity = Math.floor(Math.random() * 3) + 1;
+            const randomPrice = Math.floor(Math.random() * 100) + 50;
+            
+            const order = new Order({
+              user: users[Math.floor(Math.random() * users.length)],
+              event: event._id,
+              tickets: [{
+                ticketType: 'VIP',
+                quantity: randomQuantity,
+                seats: [],
+                price: randomPrice
+              }],
+              totalAmount: randomPrice * randomQuantity,
+              status: 'confirmed',
+              paymentInfo: {
+                method: 'Credit Card',
+                transactionId: `TR-ORG-${Math.floor(Math.random() * 1000000)}`,
+                paidAt: new Date(orderDate)
+              },
+              createdAt: new Date(orderDate),
+              updatedAt: new Date(orderDate)
+            });
+            
+            await order.save();
+          }
+        }
+      }
+    }
     
     // Create special distribution for testing specific scenarios
     

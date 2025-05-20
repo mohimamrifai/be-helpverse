@@ -197,4 +197,42 @@ export interface IMonthlyReport {
     day: number;
     amount: number;
   }[];
+}
+
+export interface IAllReports {
+  totalOrders: number;
+  confirmedOrders: number;
+  ticketsSold: number;
+  revenue: number;
+  occupancyPercentage: number;
+  ordersData: {
+    id: string;
+    date: Date;
+    eventId: string;
+    eventName: string;
+    totalAmount: number;
+    status: string;
+    ticketCount: number;
+    customerName: string;
+    customerEmail: string;
+  }[];
+  ordersByDate: Record<string, {
+    id: string;
+    eventId: string;
+    eventName: string;
+    totalAmount: number;
+    status: string;
+    ticketCount: number;
+  }[]>;
+  eventSummary?: {
+    id: string;
+    name: string;
+    totalOrders: number;
+    confirmedOrders: number;
+    ticketsSold: number;
+    revenue: number;
+    occupancyPercentage: number;
+  }[];
+  occupancyByDate?: Record<string, number>;
+  message?: string;
 } 
