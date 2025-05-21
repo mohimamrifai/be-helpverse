@@ -413,6 +413,26 @@
            - Jika data tidak tersedia:
              - message: "Insufficient data for the selected period."
 
+        4. GET /api/admin/auditorium/download-report
+           - Deskripsi: Mengunduh laporan auditorium dalam format PDF
+           - Header: Authorization: Bearer {token}
+           - Query Parameters:
+             - type: string (schedule, events-held, utilization, all, default: all)
+             - from: string (format: YYYY-MM-DD, default: 30 hari yang lalu)
+             - to: string (format: YYYY-MM-DD, default: hari ini)
+           - Response:
+             - Content-Type: application/pdf
+             - Content-Disposition: attachment; filename=auditorium-report-YYYY-MM-DD.pdf
+           - Respons Error:
+             - Status 200, Jika tidak ada data: `{ message: "Insufficient data for the selected period." }`
+             - Status 500, Jika terjadi kesalahan: `{ error: "detail error" }`
+           - Keterangan:
+             - Laporan PDF berisi semua data penting, termasuk tabel dan ringkasan
+             - Tipe 'schedule' berisi jadwal penggunaan auditorium
+             - Tipe 'events-held' berisi data event yang sudah diselenggarakan
+             - Tipe 'utilization' berisi data tingkat utilisasi auditorium
+             - Tipe 'all' berisi laporan lengkap yang mencakup semua data di atas
+
 ## Model Data
 
 ### 1. User

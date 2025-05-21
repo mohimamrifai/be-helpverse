@@ -2,7 +2,8 @@ import express from 'express';
 import {
   getAuditoriumSchedule,
   getEventsHeld,
-  getAuditoriumUtilization
+  getAuditoriumUtilization,
+  downloadAuditoriumReport
 } from '../../controllers/admin/auditorium';
 import { protect, authorize } from '../../middlewares/auth';
 
@@ -15,5 +16,6 @@ router.use(protect, authorize('admin'));
 router.route('/schedule').get(getAuditoriumSchedule);
 router.route('/events-held').get(getEventsHeld);
 router.route('/utilization').get(getAuditoriumUtilization);
+router.route('/download-report').get(downloadAuditoriumReport);
 
 export default router; 
