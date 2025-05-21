@@ -154,12 +154,12 @@ const EventSchema = new Schema<IEvent>(
     },
     published: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     approvalStatus: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
-      default: 'pending',
+      default: 'approved',
     },
     promotionalOffers: [OfferSchema],
     tags: [String],
