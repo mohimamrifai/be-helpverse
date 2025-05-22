@@ -263,7 +263,7 @@
            - Response Body:
              - success: boolean
              - count: number
-             - data: array event
+             - data: array event (termasuk `usageHours`, `duration` dan `isUpcoming` untuk setiap event)
 
         3. PUT /api/admin/events/:id/approval
            - Deskripsi: Memperbarui status persetujuan event (admin only)
@@ -461,6 +461,9 @@
     - promotionalOffers: array Offer
     - tags: array string
     - createdBy: User (required)
+    - usageHours: number (jumlah jam penggunaan auditorium)
+    - duration: number (alias untuk usageHours untuk kompatibilitas)
+    - isUpcoming: boolean (menandai apakah event akan datang atau sudah lewat)
 
 ### 3. Ticket
     - name: string (required)

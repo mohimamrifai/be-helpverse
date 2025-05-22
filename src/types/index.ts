@@ -72,6 +72,9 @@ export interface IEvent extends Document {
   createdBy: Types.ObjectId | IUser;
   createdAt: Date;
   updatedAt: Date;
+  usageHours?: number;
+  duration?: number;
+  isUpcoming?: boolean;
 }
 
 // Order Interfaces

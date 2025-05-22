@@ -2,11 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import User from '../models/User';
 import Event from '../models/Event';
 import Order from '../models/Order';
+import AuditoriumSchedule from '../models/AuditoriumSchedule';
 import { IUser } from '../types';
 
 // Interface for request with user
 interface AuthRequest extends Request {
   user?: IUser;
+}
+
+// Helper function to get hours difference between two dates
+function getHoursDifference(startDate: Date, endDate: Date): number {
+  const diffMs = endDate.getTime() - startDate.getTime();
+  return parseFloat((diffMs / (1000 * 60 * 60)).toFixed(1)); // Convert ms to hours with 1 decimal place
 }
 
 // @desc    Get all events (including unpublished)
@@ -81,11 +88,46 @@ export const getAllEvents = async (
       };
     }
 
+    // Get auditorium schedules for all events to include usage hours
+    const eventIds = events.map(event => event._id);
+    const schedules = await AuditoriumSchedule.find({
+      event: { $in: eventIds }
+    });
+
+    // Map schedules to events by event ID
+    const scheduleMap = schedules.reduce((map, schedule) => {
+      map[schedule.event.toString()] = schedule;
+      return map;
+    }, {} as Record<string, typeof schedules[0]>);
+
+    // Enhance events with duration/usage hours
+    const enhancedEvents = events.map(event => {
+      const eventObj = event.toObject();
+      const schedule = scheduleMap[(event as any)._id.toString()];
+      
+      if (schedule) {
+        // Calculate usage hours from schedule
+        eventObj.usageHours = getHoursDifference(schedule.startTime, schedule.endTime);
+        eventObj.duration = eventObj.usageHours; // Add duration field as well for compatibility
+      } else {
+        // Default to 3 hours if no schedule found (common event duration)
+        eventObj.usageHours = 3.0;
+        eventObj.duration = 3.0;
+      }
+      
+      // Check if event is in the future
+      const now = new Date();
+      const eventDate = new Date(event.date);
+      eventObj.isUpcoming = eventDate > now;
+      
+      return eventObj;
+    });
+
     res.status(200).json({
       success: true,
-      count: events.length,
+      count: enhancedEvents.length,
       pagination,
-      data: events,
+      data: enhancedEvents,
     });
   } catch (err) {
     next(err);
