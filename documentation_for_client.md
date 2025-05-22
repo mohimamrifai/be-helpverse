@@ -302,9 +302,10 @@
     # Endpoint yang tersedia
         1. GET /api/reports/daily
            - Deskripsi: Mendapatkan laporan penjualan harian
-           - Header: Authorization: Bearer {token}
            - Query Parameters:
              - date: string (format: YYYY-MM-DD, default: hari ini)
+             - eventId: string (opsional, ID event untuk memfilter data)
+           - Header: Authorization: Bearer {token}
            - Response Body:
              - date: Date
              - ticketsSold: number
@@ -317,6 +318,8 @@
 
         2. GET /api/reports/weekly
            - Deskripsi: Mendapatkan laporan penjualan mingguan
+           - Query Parameters:
+             - eventId: string (opsional, ID event untuk memfilter data)
            - Header: Authorization: Bearer {token}
            - Response Body:
              - startDate: Date
@@ -331,9 +334,10 @@
 
         3. GET /api/reports/monthly
            - Deskripsi: Mendapatkan laporan penjualan bulanan
-           - Header: Authorization: Bearer {token}
            - Query Parameters:
              - date: string (format: YYYY-MM-DD, default: bulan berjalan)
+             - eventId: string (opsional, ID event untuk memfilter data)
+           - Header: Authorization: Bearer {token}
            - Response Body:
              - month: number
              - year: number
@@ -348,11 +352,9 @@
         4. GET /api/reports/download
            - Deskripsi: Mengunduh laporan dalam format PDF
            - Query Parameters:
-             - type: string (daily, weekly, monthly, all) - default: 'monthly' jika tidak disediakan atau tidak valid
-             - date: string (format: YYYY-MM-DD) - default: tanggal hari ini jika tidak disediakan atau tidak valid
-                * Tidak diperlukan untuk tipe 'weekly' dan 'all'
-                * Untuk 'daily': digunakan untuk menentukan hari spesifik
-                * Untuk 'monthly': digunakan untuk menentukan bulan dan tahun
+             - type: string (daily, weekly, monthly, all)
+             - date: string (format: YYYY-MM-DD, tidak diperlukan untuk weekly dan all)
+             - eventId: string (opsional, ID event untuk memfilter data)
            - Header: Authorization: Bearer {token}
            - Response:
              - Content-Type: application/pdf
@@ -588,7 +590,9 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
 - Event Organizer dapat melihat laporan penjualan tiket dan occupancy untuk event mereka.
 - Laporan tersedia dalam bentuk harian, mingguan, dan bulanan.
 - Setiap laporan berisi informasi jumlah tiket terjual, pendapatan (dalam RM), persentase kursi terisi, dan grafik penjualan/pendapatan.
+- **NEW!** Event Organizer dapat memfilter laporan berdasarkan event tertentu menggunakan parameter query `eventId`.
 - Admin dapat melihat jadwal penggunaan auditorium dan tingkat utilisasi.
+- Admin juga dapat memfilter laporan berdasarkan event tertentu.
 - Semua endpoint laporan mendukung custom date range.
 - Laporan dapat diunduh dalam format PDF melalui endpoint khusus untuk berbagi atau menyimpan laporan.
 - PDF laporan menggunakan Bahasa Inggris dan format mata uang RM (Ringgit Malaysia)
@@ -602,11 +606,14 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
    - Deskripsi: Mendapatkan laporan penjualan harian
    - Query Parameters:
      - date: string (format: YYYY-MM-DD, default: hari ini)
+     - eventId: string (opsional, ID event untuk memfilter data)
    - Header: Authorization: Bearer {token}
    - Response Body: Data laporan harian
 
 2. GET /api/reports/weekly
    - Deskripsi: Mendapatkan laporan penjualan mingguan untuk minggu saat ini
+   - Query Parameters:
+     - eventId: string (opsional, ID event untuk memfilter data)
    - Header: Authorization: Bearer {token}
    - Response Body: Data laporan mingguan
 
@@ -614,11 +621,14 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
    - Deskripsi: Mendapatkan laporan penjualan bulanan
    - Query Parameters:
      - date: string (format: YYYY-MM-DD, default: bulan ini)
+     - eventId: string (opsional, ID event untuk memfilter data)
    - Header: Authorization: Bearer {token}
    - Response Body: Data laporan bulanan
 
 4. GET /api/reports/all
    - Deskripsi: Mendapatkan seluruh data laporan tanpa filter periode waktu
+   - Query Parameters:
+     - eventId: string (opsional, ID event untuk memfilter data)
    - Header: Authorization: Bearer {token}
    - Response Body:
      - totalOrders: number (jumlah total order, termasuk semua status)
@@ -652,6 +662,7 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
    - Query Parameters:
      - type: string (daily, weekly, monthly, all)
      - date: string (format: YYYY-MM-DD, tidak diperlukan untuk weekly dan all)
+     - eventId: string (opsional, ID event untuk memfilter data)
    - Header: Authorization: Bearer {token}
    - Response: File PDF
 
@@ -680,6 +691,39 @@ Aplikasi ini menyediakan sistem notifikasi untuk memberitahu pengguna tentang pe
     "occupancyByDate": {}
   }
   ```
+
+### Filter Berdasarkan Event
+
+Semua endpoint reports sekarang mendukung parameter query `eventId` untuk memfilter data berdasarkan event tertentu:
+
+1. **Cara Penggunaan**:
+   - Tambahkan parameter `eventId` dengan nilai MongoDB ID dari event yang ingin difilter
+   - Contoh: `/api/reports/all?eventId=64a7b3c55d4e21a8f9b2e7d1`
+   - Untuk endpoint dengan parameter lain: `/api/reports/daily?date=2025-05-20&eventId=64a7b3c55d4e21a8f9b2e7d1`
+
+2. **Perilaku Filter**:
+   - Event Organizer hanya dapat memfilter event yang mereka buat
+   - Admin dapat memfilter berdasarkan event manapun
+   - Jika event ID tidak ditemukan atau pengguna tidak memiliki akses ke event tersebut, API akan mengembalikan:
+     ```json
+     {
+       "message": "Event not found or you don't have permission to access it."
+     }
+     ```
+   
+3. **Data yang Difilter**:
+   - Laporan hanya akan menampilkan data terkait event tersebut:
+     - Jumlah tiket terjual untuk event tersebut
+     - Pendapatan dari event tersebut
+     - Occupancy rate untuk event tersebut
+     - Orders yang terkait dengan event tersebut
+   - Jika tidak ada orders untuk event tersebut, API akan mengembalikan pesan "Insufficient data for the selected period"
+
+4. **Manfaat Menggunakan Filter**:
+   - Analisis performa event tertentu dengan lebih detail
+   - Membandingkan data antar event dengan lebih mudah
+   - Pembuatan laporan yang lebih spesifik untuk event tertentu
+   - Download PDF laporan untuk event individual
 
 ### Penanganan Parameter pada Endpoint Download
 
@@ -733,12 +777,15 @@ Laporan PDF yang dihasilkan memiliki format yang berbeda tergantung jenis lapora
 
 1. Gunakan endpoint `/api/reports/all` untuk mendapatkan data lengkap yang dapat difilter pada sisi client
 2. Jika hanya membutuhkan data untuk periode tertentu, gunakan endpoint spesifik (daily/weekly/monthly)
-3. Selalu periksa keberadaan data sebelum mengakses properti dalam respons
-4. Untuk visualisasi data:
+3. Untuk analisis performa event tertentu, gunakan parameter `eventId` pada endpoint yang sesuai
+4. Ketika menampilkan dashboard untuk Event Organizer dengan multiple events, sediakan dropdown filter untuk memilih event tertentu
+5. Selalu periksa keberadaan data sebelum mengakses properti dalam respons
+6. Untuk visualisasi data:
    - Gunakan `ordersByDate` untuk grafik tren waktu
    - Gunakan `eventSummary` untuk perbandingan antar event
    - Gunakan `ordersData` untuk tabel detail atau analisis per order
    - Gunakan `occupancyByDate` untuk menampilkan grafik okupansi harian
+7. Saat membuat laporan PDF untuk event tertentu, selalu sertakan parameter `eventId` pada endpoint download
 
 ## Auditorium Management (Admin)
 - Dashboard khusus admin untuk memantau dan mengelola penggunaan auditorium

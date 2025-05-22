@@ -2,13 +2,61 @@ import PDFKit from 'pdfkit';
 import moment from 'moment';
 
 /**
- * Generate PDF report
+ * Convenience function to generate a PDF report and return a buffer
+ * @param title Report title
+ * @param report Report data
+ * @param reportType Report type ('daily', 'weekly', 'monthly', 'all')
+ * @returns Promise<Buffer> Buffer containing the PDF
+ */
+export const generatePdfReport = async (
+  title: string,
+  report: any,
+  reportType: string
+): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a new PDF document
+      const doc = new PDFKit({
+        margin: 40,
+        bufferPages: true,
+        size: 'A4',
+        info: {
+          Title: title,
+          Author: 'HelpVerse',
+          CreationDate: new Date()
+        }
+      });
+
+      // Collect PDF chunks in memory
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+
+      doc.on('end', () => {
+        const result = Buffer.concat(chunks);
+        resolve(result);
+      });
+
+      // Generate the PDF content
+      generatePdfContent(doc, report, title, reportType);
+
+      // Finalize the document
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+/**
+ * Generate PDF report content
  * @param doc PDFKit document instance
  * @param report Report data
  * @param title Report title
  * @param type Report type ('daily', 'weekly', 'monthly', 'all')
  */
-export const generatePdfReport = (
+export const generatePdfContent = (
   doc: PDFKit.PDFDocument, 
   report: any, 
   title: string, 
@@ -353,36 +401,6 @@ export const generatePdfReport = (
       // Tambahkan keterangan jika perlu
       if (report.eventSummary.length > 10) {
         addCaption(`* Showing top 10 events by revenue out of ${report.eventSummary.length} total events.`);
-      }
-    }
-    
-    // Occupancy Trends
-    if (report.occupancyByDate && Object.keys(report.occupancyByDate).length > 0) {
-      // Selalu buat halaman baru untuk bagian ini
-      addSectionPage('Occupancy Trends');
-      
-      doc.fontSize(FONT_SIZE.NORMAL)
-         .text('The table below shows venue occupancy rates for recent events:');
-      doc.moveDown(0.5);
-      
-      // Ambil 15 hari terakhir untuk ditampilkan (bukan 20)
-      const dates = Object.keys(report.occupancyByDate)
-        .sort() // Sortir berdasarkan tanggal
-        .slice(-15); // 15 hari terakhir
-      
-      const occupancyTable = {
-        headers: ['Date', 'Occupancy Rate (%)'],
-        rows: dates.map(date => [
-          formatDate(date),
-          formatPercentage(report.occupancyByDate[date])
-        ])
-      };
-      
-      drawTable(doc, occupancyTable);
-      
-      // Tambahkan keterangan
-      if (Object.keys(report.occupancyByDate).length > 15) {
-        addCaption(`* Showing the 15 most recent dates out of ${Object.keys(report.occupancyByDate).length} total dates.`);
       }
     }
     
