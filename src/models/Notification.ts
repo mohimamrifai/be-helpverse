@@ -5,7 +5,7 @@ export interface INotification extends Document {
   recipient: mongoose.Types.ObjectId | IUser;
   title: string;
   message: string;
-  type: 'waitlist_ticket' | 'event_update' | 'order_confirmation' | 'system';
+  type: 'waitlist_ticket' | 'waitlist_ticket_soldout' | 'event_update' | 'order_confirmation' | 'system';
   eventId?: mongoose.Types.ObjectId;
   ticketId?: mongoose.Types.ObjectId;
   isRead: boolean;
@@ -30,7 +30,7 @@ const NotificationSchema: Schema = new Schema(
     },
     type: {
       type: String,
-      enum: ['waitlist_ticket', 'event_update', 'order_confirmation', 'system'],
+      enum: ['waitlist_ticket', 'waitlist_ticket_soldout', 'event_update', 'order_confirmation', 'system'],
       default: 'system',
     },
     eventId: {

@@ -125,7 +125,7 @@ export interface INotification extends Document {
   email?: string;
   title: string;
   message: string;
-  type: 'waitlist_ticket' | 'event_update' | 'order_confirmation' | 'system';
+  type: 'waitlist_ticket' | 'waitlist_ticket_soldout' | 'event_update' | 'order_confirmation' | 'system';
   eventId?: Types.ObjectId | IEvent;
   ticketId?: Types.ObjectId | IWaitlistTicket;
   isRead: boolean;

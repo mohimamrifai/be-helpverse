@@ -15,7 +15,7 @@ class NotificationService {
     recipientId: mongoose.Types.ObjectId | string;
     title: string;
     message: string;
-    type: 'waitlist_ticket' | 'event_update' | 'order_confirmation' | 'system';
+    type: 'waitlist_ticket' | 'waitlist_ticket_soldout' | 'event_update' | 'order_confirmation' | 'system';
     eventId?: mongoose.Types.ObjectId | string;
     ticketId?: mongoose.Types.ObjectId | string;
   }) {
@@ -115,6 +115,66 @@ class NotificationService {
       };
     } catch (error) {
       console.error('Error notifying waitlist users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mengirim notifikasi ke semua user yang terdaftar dalam waiting list ketika tiket waitlist sudah habis
+   */
+  async notifyWaitlistTicketSoldOut(eventId: mongoose.Types.ObjectId | string, ticketId: mongoose.Types.ObjectId | string) {
+    try {
+      // Dapatkan event untuk informasi yang lebih lengkap
+      const event = await Event.findById(eventId);
+      if (!event) {
+        throw new Error('Event tidak ditemukan');
+      }
+
+      // Dapatkan nama tiket dari ticketId
+      const ticket = await mongoose.model('WaitlistTicket').findById(ticketId);
+      if (!ticket) {
+        throw new Error('Tiket waitlist tidak ditemukan');
+      }
+
+      // Dapatkan semua user dalam waiting list untuk event ini yang belum memesan tiket
+      const waitlistUsers = await WaitingList.find({ 
+        event: eventId,
+        orderCompleted: { $ne: true } // Hanya yang belum memesan
+      });
+      
+      if (waitlistUsers.length === 0) {
+        return { success: true, message: 'Tidak ada user dalam waiting list', count: 0 };
+      }
+
+      let notificationCount = 0;
+      const message = `Tiket waitlist "${ticket.name}" untuk event "${event.name}" sudah habis. Silakan cek event lain yang tersedia.`;
+
+      // Untuk setiap entri waitlist, cari user berdasarkan email dan kirim notifikasi
+      for (const waitlistEntry of waitlistUsers) {
+        // Cari user berdasarkan email
+        const user = await User.findOne({ email: waitlistEntry.email });
+        
+        // Jika user ditemukan, kirim notifikasi
+        if (user && user._id) {
+          await this.createNotification({
+            recipientId: user._id.toString(),
+            title: `Tiket Waitlist Habis: ${event.name}`,
+            message,
+            type: 'waitlist_ticket_soldout',
+            eventId,
+            ticketId,
+          });
+          notificationCount++;
+        }
+      }
+
+      return {
+        success: true,
+        message: `Notifikasi tiket habis berhasil dikirim ke ${notificationCount} user dalam waiting list`,
+        count: notificationCount
+      };
+    } catch (error) {
+      console.error('Error notifying waitlist users about sold out tickets:', error);
       throw error;
     }
   }

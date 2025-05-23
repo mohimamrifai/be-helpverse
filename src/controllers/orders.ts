@@ -4,6 +4,8 @@ import Event from '../models/Event';
 import WaitlistTicket from '../models/WaitlistTicket';
 import { IUser } from '../types';
 import WaitingList from '../models/WaitingList';
+import notificationService from '../utils/notificationService';
+import mongoose from 'mongoose';
 
 // Interface for request with user
 interface AuthRequest extends Request {
@@ -247,10 +249,20 @@ export const createOrder = async (
     } else {
       // Untuk waitlist, update jumlah tiket waitlist yang sudah dibeli
       for (const ticket of tickets) {
-        await WaitlistTicket.findOneAndUpdate(
+        const waitlistTicket = await WaitlistTicket.findOneAndUpdate(
           { event: eventId, name: ticket.ticketType },
-          { $inc: { quantity: -ticket.quantity } }
+          { $inc: { quantity: -ticket.quantity } },
+          { new: true }
         );
+
+        // Cek apakah tiket waitlist sudah habis setelah pembelian ini
+        if (waitlistTicket && waitlistTicket.quantity <= 0) {
+          // Kirim notifikasi bahwa tiket waitlist sudah habis
+          await notificationService.notifyWaitlistTicketSoldOut(
+            eventId,
+            (waitlistTicket._id as mongoose.Types.ObjectId).toString()
+          );
+        }
       }
       
       // Hapus user dari waiting list setelah berhasil memesan tiket waitlist
