@@ -152,6 +152,7 @@ export interface IUtilization extends Document {
   createdAt: Date;
   updatedAt: Date;
   utilization_percentage?: number;
+  populatedEvents?: any[];
 }
 
 // Report Interfaces
